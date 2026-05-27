@@ -1,328 +1,413 @@
-# AI-Trader 定制化项目
+# AI-Trader - 智能交易助手
 
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+一个功能完整的 AI 交易助手平台，包含 AI 对话、风险控制、市场情报、策略编辑等功能。
 
-本项目记录了对 [HKUDS/AI-Trader](https://github.com/HKUDS/AI-Trader) 开源项目的本地部署、功能增强和性能优化工作。
+## ✨ 功能特性
 
-## 📋 目录
+### 🤖 AI Agent 对话看板
+- 多角色 AI 助手（市场分析师、交易教练、投资组合经理、量化研究员）
+- 对话历史记录
+- 快捷提问模板
+- 实时 AI 回复
 
-- [项目概述](#项目概述)
-- [主要改进](#主要改进)
-- [快速开始](#快速开始)
-- [配置说明](#配置说明)
-- [性能提升](#性能提升)
-- [测试](#测试)
-- [文档](#文档)
-- [修改的文件](#修改的文件)
-- [相关链接](#相关链接)
+### 📊 风险仪表盘
+- 实时风险指标监控（集中度风险、净敞口、最大回撤、胜率、夏普比率）
+- 风险预警系统
+- 仓位计算器
+- 风险设置配置
 
-## 🚀 项目概述
+### 📰 市场情报中心
+- 实时市场新闻聚合
+- 事件日历
+- 经济指标
+- 市场情绪分析
+- 涨跌榜
 
-AI-Trader 是一个基于 AI 的自动化交易系统。本项目对其进行了以下定制化改进：
+### 💡 策略编辑器
+- 策略创建和管理
+- 策略模板库
+- 回测引擎
+- 代码编辑器
 
-| 功能 | 状态 | 说明 |
-|------|------|------|
-| Python 3.9 兼容性 | ✅ | 支持 Python 3.9 及以上版本 |
-| 价格获取增强 | ✅ | 免费 API 端点回退机制 |
-| 手动刷新功能 | ✅ | 前后端完整实现 |
-| Redis 两级缓存 | ✅ | 本地内存 + Redis 共享缓存 |
-| 单元测试 | ✅ | 17 个测试全部通过 |
-| 文档完善 | ✅ | 完整的测试报告和部署指南 |
+### 👤 用户系统
+- 用户注册和登录
+- 个人资料管理
+- 用户统计数据
+- 偏好设置
 
-## ✨ 主要改进
+### 🔔 通知系统
+- 实时通知中心
+- 邮件配置
+- Webhook 集成
+- 通知设置
 
-### 1. Python 3.9 兼容性
+## 🛠️ 技术栈
 
-**问题**：原项目使用了 Python 3.10+ 的类型注解语法（`int | None`）
+### 后端
+- **Flask 3.0.0** - Python Web 框架
+- **SQLite** - 数据库
+- **Python 3.9+** - 编程语言
 
-**解决方案**：
-- 添加 `from __future__ import annotations` 到 `routes_agent.py`
-- 安装 `eval_type_backport` 依赖
+### 前端
+- **原生 HTML/CSS/JavaScript** - 前端技术
+- **Chart.js** - 图表库
+- **Tailwind CSS** - CSS 框架（通过 CDN）
 
-### 2. 价格获取增强
+### 部署
+- **Render.com** - 后端部署
+- **Surge.sh** - 前端部署
 
-**问题**：Alpha Vantage 免费 API 密钥无法访问 `TIME_SERIES_INTRADAY`（高级端点）
+## 🚀 快速开始
 
-**解决方案**：
-- 实现 API 回退机制
-- 先尝试 `TIME_SERIES_INTRADAY`（高级端点）
-- 失败后自动回退到 `GLOBAL_QUOTE`（免费端点）
+### 本地开发
 
-### 3. 手动刷新功能
-
-**后端**：
-- 新增 API 端点：`POST /api/refresh-prices`
-- 一次性刷新所有持仓价格
-- 返回详细的刷新结果统计
-
-**前端**：
-- 在 TrendingSidebar 中添加刷新按钮
-- 显示刷新状态（刷新中/完成）
-- 显示刷新结果统计
-- 5 秒后自动清除消息
-- 中英文双语支持
-
-### 4. Redis 两级缓存系统
-
-**架构**：
-```
-Level 1: Local Memory Cache (最快)
-  - 进程内缓存
-  - 自动从 Redis 同步
-  - 响应时间: < 1ms
-
-Level 2: Redis Cache (共享)
-  - 跨进程共享
-  - 持久化存储
-  - 响应时间: ~1-5ms
-```
-
-**缓存键格式**：
-```
-{prefix}:price:{market}:{symbol}[:{token_id}]
-```
-
-示例：
-- `ai_trader:price:us-stock:AAPL`
-- `ai_trader:price:polymarket:BTC:12345`
-
-**缓存 TTL 配置**：
-- 成功价格缓存：默认 30 秒（可配置）
-- 失败请求缓存：默认 15 秒（可配置）
-- 最小 TTL：5 秒
-
-## ⚡ 快速开始
-
-### 1. 克隆项目
-
+#### 1. 克隆项目
 ```bash
-# 克隆原项目
-git clone https://github.com/HKUDS/AI-Trader.git
-cd AI-Trader
+git clone https://github.com/lccuhk/ai-trader-customization.git
+cd ai-trader-customization
 ```
 
-### 2. 安装依赖
-
-**后端**：
+#### 2. 安装依赖
 ```bash
-cd service
-python3 -m pip install -r requirements.txt
-python3 -m pip install email-validator eval_type_backport
+pip install -r requirements.txt
 ```
 
-**前端**：
+#### 3. 启动后端服务
 ```bash
-cd frontend
-npm install
+python main.py
 ```
 
-**Redis（可选，推荐）**：
+后端服务将在 http://localhost:8001 启动
+
+#### 4. 启动前端服务
 ```bash
-# macOS
-brew install redis
-redis-server --daemonize yes
-
-# Ubuntu/Debian
-sudo apt-get install redis-server
-sudo systemctl start redis-server
+cd ../AI-Trader/service/frontend/dist
+python3 -m http.server 8080
 ```
 
-### 3. 配置环境变量
+前端服务将在 http://localhost:8080 启动
 
-复制 `.env.example` 为 `.env` 并配置：
+### 演示账户
+- **邮箱**: `demo@example.com`
+- **密码**: `demo123`
 
+## 📡 API 文档
+
+### 基础 URL
+- 本地: `http://localhost:8001`
+- 生产: `https://trading-agent-for-dscourse-backend.onrender.com`
+
+### 认证接口
+
+#### 登录
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+    "username": "demo@example.com",
+    "password": "demo123"
+}
+```
+
+#### 注册
+```http
+POST /api/auth/register
+Content-Type: application/json
+
+{
+    "username": "testuser",
+    "email": "test@example.com",
+    "password": "test123"
+}
+```
+
+### AI 接口
+
+#### 获取 AI 助手列表
+```http
+GET /api/ai/agents
+```
+
+#### AI 对话
+```http
+POST /api/ai/chat
+Content-Type: application/json
+
+{
+    "message": "当前市场趋势如何？",
+    "agent_id": "market-analyst"
+}
+```
+
+#### 获取对话列表
+```http
+GET /api/ai/conversations
+```
+
+### 风险接口
+
+#### 获取风险仪表盘
+```http
+GET /api/risk/dashboard
+```
+
+#### 获取风险设置
+```http
+GET /api/risk/settings
+```
+
+#### 获取风险预警
+```http
+GET /api/risk/alerts
+```
+
+#### 计算仓位大小
+```http
+POST /api/risk/calculate-position-size
+Content-Type: application/json
+
+{
+    "account_size": 100000,
+    "risk_percent": 1,
+    "entry_price": 100,
+    "stop_loss": 95
+}
+```
+
+### 市场接口
+
+#### 获取市场仪表盘
+```http
+GET /api/market/dashboard
+```
+
+#### 获取市场新闻
+```http
+GET /api/market/news?limit=10&category=macro
+```
+
+#### 获取市场事件
+```http
+GET /api/market/events
+```
+
+#### 获取经济指标
+```http
+GET /api/market/indicators
+```
+
+### 策略接口
+
+#### 获取策略列表
+```http
+GET /api/strategies
+```
+
+#### 创建策略
+```http
+POST /api/strategies
+Content-Type: application/json
+
+{
+    "name": "我的策略",
+    "description": "策略描述",
+    "strategy_type": "trend_following",
+    "code": "# 策略代码"
+}
+```
+
+#### 策略回测
+```http
+POST /api/strategies/backtest
+Content-Type: application/json
+
+{
+    "strategy_id": 1,
+    "start_date": "2023-01-01",
+    "end_date": "2023-12-31",
+    "initial_capital": 100000
+}
+```
+
+#### 获取策略模板
+```http
+GET /api/strategies/templates
+```
+
+### 用户接口
+
+#### 获取当前用户
+```http
+GET /api/users/me
+```
+
+#### 获取用户统计
+```http
+GET /api/users/me/stats
+```
+
+#### 获取用户偏好
+```http
+GET /api/users/me/preferences
+```
+
+### 通知接口
+
+#### 获取通知列表
+```http
+GET /api/notifications
+```
+
+#### 标记通知已读
+```http
+PUT /api/notifications/{id}/read
+```
+
+#### 标记所有通知已读
+```http
+PUT /api/notifications/read-all
+```
+
+#### 获取通知设置
+```http
+GET /api/notifications/settings
+```
+
+#### 获取 Webhook 列表
+```http
+GET /api/webhooks
+```
+
+#### 获取邮件配置
+```http
+GET /api/email/config
+```
+
+## 🌐 部署
+
+### 后端部署到 Render.com
+
+1. 访问 https://render.com 并注册账号
+2. 点击 "New" → "Web Service"
+3. 连接你的 GitHub 仓库
+4. 配置如下：
+   - **Name**: `trading-agent-for-dscourse-backend`
+   - **Runtime**: Python 3
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `python main.py`
+   - **Plan**: Free
+5. 点击 "Create Web Service"
+
+### 前端部署到 Surge.sh
+
+1. 安装 Surge CLI:
 ```bash
-cp .env.example .env
+npm install -g surge
 ```
 
-编辑 `.env` 文件：
-
-```env
-# API 密钥（必需）
-ALPHA_VANTAGE_API_KEY=your_api_key_here
-
-# Redis 配置（可选，推荐）
-REDIS_ENABLED=true
-REDIS_URL=redis://localhost:6379
-REDIS_PREFIX=ai_trader
-
-# 价格缓存 TTL
-PRICE_CACHE_TTL_SECONDS=30
-PRICE_FAILURE_CACHE_TTL_SECONDS=15
-```
-
-### 4. 启动服务
-
-**后端**：
+2. 部署前端:
 ```bash
-cd service/server
-python3 -m uvicorn main:app --host 0.0.0.0 --port 9004 --reload
+cd AI-Trader/service/frontend/dist
+surge .
 ```
-
-**前端**：
-```bash
-cd service/frontend
-npm run dev
-```
-
-**Worker（后台任务）**：
-```bash
-cd service/server
-python3 worker.py
-```
-
-## ⚙️ 配置说明
 
 ### 环境变量
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `ALPHA_VANTAGE_API_KEY` | demo | Alpha Vantage API 密钥 |
-| `REDIS_ENABLED` | false | 是否启用 Redis 缓存 |
-| `REDIS_URL` | "" | Redis 连接 URL |
-| `REDIS_PREFIX` | ai_trader | Redis 键前缀 |
-| `PRICE_CACHE_TTL_SECONDS` | 60 | 成功价格缓存 TTL（秒） |
-| `PRICE_FAILURE_CACHE_TTL_SECONDS` | 30 | 失败请求缓存 TTL（秒） |
-| `POSITION_REFRESH_INTERVAL` | 900 | 价格刷新间隔（秒） |
-| `MAX_PARALLEL_PRICE_FETCH` | 2 | 最大并行价格获取数 |
+| 变量名 | 说明 | 默认值 |
+|--------|------|--------|
+| `PORT` | 服务端口 | 8001 |
+| `PYTHON_VERSION` | Python 版本 | 3.11.9 |
 
-### 缓存流程
+## 📁 项目结构
 
 ```
-1. 检查本地内存缓存
-   ├─ 命中 → 返回缓存值 (< 1ms)
-   └─ 未命中 → 检查 Redis 缓存
-
-2. 检查 Redis 缓存（如果启用）
-   ├─ 命中 → 同步到本地缓存，返回值 (~1-5ms)
-   └─ 未命中 → 调用外部 API
-
-3. 调用外部 API
-   ├─ 成功 → 缓存结果（TTL: 30s）
-   └─ 失败 → 缓存失败（TTL: 15s）
+ai-trader-customization/
+├── main.py                 # 应用入口
+├── requirements.txt        # Python 依赖
+├── render.yaml            # Render 配置
+├── .gitignore             # Git 忽略文件
+├── server/                # 后端代码
+│   ├── flask_server.py    # Flask 后端服务
+│   ├── simple_server.py   # FastAPI 后端服务（备用）
+│   ├── requirements.txt   # 后端依赖
+│   └── data/              # 数据库目录
+│       └── clawtrader.db  # SQLite 数据库
+└── AI-Trader/             # 前端代码
+    └── service/
+        └── frontend/
+            └── dist/      # 前端构建产物
+                ├── index.html
+                └── CNAME   # Surge 域名配置
 ```
 
-## 📈 性能提升
+## 🔧 配置说明
 
-### API 调用减少
+### CORS 配置
+后端已配置为允许以下域名访问：
+- `http://localhost:8080`
+- `http://localhost:3000`
+- `https://trading-agent-for-dscourse.surge.sh`
+- `https://trading-agent-for-dscourse-backend.onrender.com`
+- 所有 `*.deta.app` 和 `*.deta.dev` 域名
+- 所有 `*.onrender.com` 域名
 
-| 指标 | 改进前 | 改进后 | 提升 |
-|------|--------|--------|------|
-| API 调用频率 | 每次刷新都调用 | 仅缓存过期时调用 | **80-90% 减少** |
-| 缓存命中率 | 0% | 80-90% | **显著提升** |
+### 数据库配置
+- 默认使用 SQLite 数据库
+- 数据库文件路径: `server/data/clawtrader.db`
+- 首次启动时自动创建表结构和示例数据
 
-### 响应时间改进
+## 🎯 功能演示
 
-| 场景 | 改进前 | 改进后 | 提升 |
-|------|--------|--------|------|
-| 本地缓存命中 | - | < 1ms | **极快** |
-| Redis 缓存命中 | - | ~1-5ms | **快速** |
-| API 调用 | 500-2000ms | 500-2000ms | 保持不变 |
+### AI 对话
+- 选择不同的 AI 助手角色
+- 输入问题获取专业回答
+- 查看历史对话记录
 
-### 速率限制保护
+### 风险控制
+- 查看实时风险指标
+- 设置风险预警阈值
+- 使用仓位计算器计算合理仓位
 
-- Alpha Vantage 免费版：25 次请求/天
-- 使用缓存后：可支持更多价格更新
-- 失败缓存避免重复调用不可用的符号
+### 市场情报
+- 浏览最新市场新闻
+- 查看即将发生的经济事件
+- 分析市场情绪
 
-## 🧪 测试
+### 策略管理
+- 创建和编辑交易策略
+- 使用策略模板快速开始
+- 回测策略表现
 
-### 运行单元测试
+## 📝 注意事项
 
-```bash
-cd service/server
-python3 -m pytest tests/test_price_cache.py -v
-```
+1. **Render 免费版会休眠**: 15 分钟无活动后会休眠，首次访问可能需要等待 10-30 秒
+2. **数据库会重置**: 每次重新部署时，SQLite 数据库会重置为初始状态
+3. **演示数据**: 系统包含示例数据，用于演示功能
+4. **AI 对话**: 当前 AI 回复是预设的模拟回复，如需真实 AI 对话，需要接入 OpenAI 或其他 LLM API
 
-### 测试覆盖范围
+## 🔮 未来规划
 
-**PriceCacheKeyTests (8 个测试)**：
-- `test_cache_key_generation` - 缓存键生成
-- `test_cache_key_with_token_id` - 带 token_id 的缓存键
-- `test_local_cache_hit` - 本地缓存命中
-- `test_local_cache_miss` - 本地缓存未命中
-- `test_local_cache_expiration` - 本地缓存过期
-- `test_failure_cache` - 失败请求缓存
-- `test_different_markets` - 不同市场缓存隔离
-- `test_cache_overwrite` - 缓存覆盖
-
-**PriceCacheTTLTests (2 个测试)**：
-- `test_success_cache_ttl` - 成功价格缓存 TTL
-- `test_failure_cache_ttl` - 失败请求缓存 TTL
-
-**RedisCacheTests (4 个测试)**：
-- `test_redis_cache_hit` - Redis 缓存命中
-- `test_redis_cache_miss` - Redis 缓存未命中
-- `test_redis_cache_expired` - Redis 缓存过期
-- `test_redis_cache_set` - Redis 缓存设置
-
-**PriceCacheIntegrationTests (3 个测试)**：
-- `test_multiple_symbols` - 多股票缓存
-- `test_cache_local_priority` - 本地缓存优先级
-- `test_redis_to_local_sync` - Redis 到本地同步
-
-### 测试结果
-
-```
-======================== 17 passed, 1 warning in 0.32s ========================
-```
-
-**所有 17 个测试全部通过！**
-
-## 📚 文档
-
-- [项目完整记录](./PROJECT_LOG_AI_TRADER.md) - 详细的项目开发日志
-- [测试报告](./TEST_REPORT_PRICE_CACHE.md) - 完整的测试报告
-- [部署指南](./docs/DEPLOYMENT.md) - 详细的部署和配置指南
-- [变更日志](./CHANGELOG.md) - 版本变更记录
-- [环境配置示例](./.env.example) - 环境变量配置模板
-
-## 📁 修改的文件
-
-### 后端修改
-
-| 文件 | 修改内容 |
-|------|----------|
-| `service/server/routes_agent.py` | 添加 Python 3.9 兼容性 |
-| `service/server/price_fetcher.py` | 添加缓存系统和 API 回退 |
-| `service/server/routes_market.py` | 添加手动刷新 API |
-| `service/server/tasks.py` | 添加 `refresh_prices_once()` 函数 |
-
-### 前端修改
-
-| 文件 | 修改内容 |
-|------|----------|
-| `service/frontend/src/AppPages.tsx` | 添加手动刷新按钮 UI |
-| `service/frontend/vite.config.mts` | 更新 API 代理配置 |
-
-### 新增文件
-
-| 文件 | 说明 |
-|------|------|
-| `service/server/tests/test_price_cache.py` | 17 个单元测试 |
-| `docs/TEST_REPORT_PRICE_CACHE.md` | 测试报告文档 |
-| `docs/DEPLOYMENT.md` | 部署指南 |
-| `CHANGELOG.md` | 变更日志 |
-
-## 🔗 相关链接
-
-- **原项目**: https://github.com/HKUDS/AI-Trader
-- **Alpha Vantage**: https://www.alphavantage.co/
-- **Redis**: https://redis.io/
-- **FastAPI**: https://fastapi.tiangolo.com/
-- **React**: https://reactjs.org/
-
-## 📄 许可证
-
-与原项目保持一致。
-
----
+- [ ] 接入真实的 AI 对话 API（OpenAI、Claude 等）
+- [ ] 实现真实的邮件发送功能
+- [ ] 实现真实的 Webhook 触发逻辑
+- [ ] 迁移到 PostgreSQL 数据库
+- [ ] 添加更多策略模板
+- [ ] 实现实时数据推送
+- [ ] 添加移动端适配
 
 ## 🤝 贡献
 
 欢迎提交 Issue 和 Pull Request！
 
-## 📧 联系方式
+## 📄 许可证
 
-如有问题，请通过 GitHub Issue 联系。
+MIT License
+
+## 📞 联系方式
+
+如有问题，请提交 Issue 或联系项目维护者。
+
+---
+
+**🎉 享受你的智能交易助手！**
