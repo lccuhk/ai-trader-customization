@@ -38,16 +38,14 @@ def cors_allowed(origin):
 
 @app.after_request
 def after_request(response):
+    if request.method == 'OPTIONS':
+        response.status_code = 200
     origin = request.headers.get('Origin', '')
     if cors_allowed(origin):
         response.headers.add('Access-Control-Allow-Origin', origin)
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
         response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response
-
-@app.route('/api/<path:path>', methods=['OPTIONS'])
-def handle_options(path):
-    return '', 200
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, 'data', 'clawtrader.db')
