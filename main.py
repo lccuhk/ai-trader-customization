@@ -8,10 +8,9 @@ sys.path.insert(0, SERVER_DIR)
 
 os.chdir(SERVER_DIR)
 
-from simple_server import app, init_db
+from flask_server import app, init_db
 
 init_db()
 
 if __name__ == '__main__':
-    import uvicorn
-    uvicorn.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 8001)))
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8001)), debug=False)
