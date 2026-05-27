@@ -18,30 +18,37 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 
-class RegexCORS:
-    def __init__(self, allowed_origins):
-        self.allowed_origins = allowed_origins
-    
-    def __contains__(self, origin):
-        if origin in self.allowed_origins:
-            return True
-        if re.match(r'^https://.*\.deta\.app$', origin):
-            return True
-        if re.match(r'^https://.*\.deta\.dev$', origin):
-            return True
-        if re.match(r'^https://.*\.onrender\.com$', origin):
-            return True
-        return False
-
-allowed_origins = RegexCORS([
+ALLOWED_ORIGINS = [
     'http://localhost:8080',
     'http://localhost:3000',
     'https://trading-agent-for-dscourse.surge.sh',
     'https://trading-agent-backend.deta.app',
     'https://trading-agent-for-dscourse-backend.onrender.com',
-])
+]
 
-CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
+def cors_allowed(origin):
+    if origin in ALLOWED_ORIGINS:
+        return True
+    if re.match(r'^https://.*\.deta\.app$', origin):
+        return True
+    if re.match(r'^https://.*\.deta\.dev$', origin):
+        return True
+    if re.match(r'^https://.*\.onrender\.com$', origin):
+        return True
+    return False
+
+@app.after_request
+def after_request(response):
+    origin = request.headers.get('Origin', '')
+    if cors_allowed(origin):
+        response.headers.add('Access-Control-Allow-Origin', origin)
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
+
+@app.route('/api/<path:path>', methods=['OPTIONS'])
+def handle_options(path):
+    return '', 200
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, 'data', 'clawtrader.db')
