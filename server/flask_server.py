@@ -210,6 +210,17 @@ def init_db():
             )
         ''')
         
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS auth_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                token TEXT UNIQUE NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+        
         conn.commit()
         
         cursor.execute('SELECT COUNT(*) FROM users WHERE email = ?', ('demo@example.com',))
@@ -290,6 +301,37 @@ def row_to_dict(row):
 
 def rows_to_dict_list(rows):
     return [dict(row) for row in rows]
+
+
+def get_current_user_id():
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return None
+    
+    token = auth_header.replace('Bearer ', '').strip()
+    if not token:
+        return None
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT user_id FROM auth_tokens WHERE token = ?', (token,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        return row['user_id']
+    return None
+
+
+def require_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user_id = get_current_user_id()
+        if not user_id:
+            return jsonify({'success': False, 'message': '未授权，请先登录'}), 401
+        request.current_user_id = user_id
+        return f(*args, **kwargs)
+    return decorated
 
 
 @app.route('/')
@@ -646,21 +688,32 @@ def login():
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT id, email FROM users 
+        SELECT id, email, username, display_name FROM users 
         WHERE email = ? AND password_hash = ?
     ''', (username, password_hash))
     row = cursor.fetchone()
     
     if row:
         token = _generate_token()
+        expires_at = (datetime.now() + timedelta(days=30)).isoformat()
+        
+        cursor.execute('''
+            INSERT INTO auth_tokens (user_id, token, expires_at)
+            VALUES (?, ?, ?)
+        ''', (row['id'], token, expires_at))
+        conn.commit()
+        
+        user_username = row['username'] or row['email'].split('@')[0]
+        user_display_name = row['display_name'] or user_username
+        
         return jsonify({
             'success': True,
             'token': token,
             'user': {
                 'id': row['id'],
-                'username': 'demo',
+                'username': user_username,
                 'email': row['email'],
-                'display_name': '演示用户'
+                'display_name': user_display_name
             }
         })
     else:
@@ -717,17 +770,38 @@ def register():
 
 
 @app.route('/api/users/me')
+@require_auth
 def get_current_user():
-    return jsonify({
-        'success': True,
-        'user': {
-            'id': 1,
-            'username': 'demo',
-            'email': 'demo@example.com',
-            'display_name': '演示用户',
-            'created_at': '2024-01-01T00:00:00'
-        }
-    })
+    user_id = request.current_user_id
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, username, email, display_name, created_at 
+        FROM users WHERE id = ?
+    ''', (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        user_username = row['username'] or row['email'].split('@')[0]
+        user_display_name = row['display_name'] or user_username
+        
+        return jsonify({
+            'success': True,
+            'user': {
+                'id': row['id'],
+                'username': user_username,
+                'email': row['email'],
+                'display_name': user_display_name,
+                'created_at': row['created_at']
+            }
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'message': '用户不存在'
+        }), 404
 
 
 @app.route('/api/users/me/stats')
