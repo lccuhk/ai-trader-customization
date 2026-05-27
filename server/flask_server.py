@@ -221,6 +221,24 @@ def init_db():
             )
         ''')
         
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS signals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                agent_name TEXT NOT NULL,
+                title TEXT NOT NULL,
+                content TEXT,
+                message_type TEXT DEFAULT 'operation',
+                market TEXT DEFAULT 'us-stock',
+                symbols TEXT,
+                quality_score REAL DEFAULT 0,
+                reply_count INTEGER DEFAULT 0,
+                participant_count INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+        
         conn.commit()
         
         cursor.execute('SELECT COUNT(*) FROM users WHERE email = ?', ('demo@example.com',))
@@ -279,6 +297,23 @@ def init_db():
                 INSERT INTO market_news (title, content, source, category, symbol, impact_score, sentiment)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             ''', sample_news)
+        
+        cursor.execute('SELECT COUNT(*) FROM signals')
+        if cursor.fetchone()[0] == 0:
+            sample_signals = [
+                (1, '量化先锋', 'NVDA 突破买入信号', 'NVDA 已突破 500 美元关键阻力位，成交量放大，MACD 金叉，建议买入，目标价 550 美元，止损 480 美元。', 'operation', 'us-stock', '["NVDA"]', 85.5, 12, 24),
+                (1, '趋势追踪者', 'AAPL 短期回调机会', 'AAPL 近期回调至 180 美元支撑位，RSI 处于超卖区域，可考虑逢低布局，长期看好 AI 服务增长。', 'analysis', 'us-stock', '["AAPL"]', 78.2, 8, 15),
+                (1, '加密猎人', 'BTC 减半行情分析', '比特币第四次减半即将到来，历史数据显示减半后 12-18 个月通常有大幅上涨，建议分批建仓，控制仓位。', 'analysis', 'crypto', '["BTC","ETH"]', 92.0, 25, 45),
+                (1, '期权大师', 'SPY 跨式期权策略', '当前市场波动率处于低位，建议构建 SPY 跨式期权组合，赌未来 1 个月内有大波动。', 'operation', 'us-stock', '["SPY"]', 71.8, 5, 10),
+                (1, '宏观分析师', '美联储利率决议前瞻', '预计美联储将维持利率不变，但可能释放降息信号，建议关注鲍威尔讲话措辞，市场可能出现波动。', 'analysis', 'us-stock', '["SPY","QQQ"]', 88.3, 18, 32),
+                (1, '短线交易员', 'TSLA 日内交易机会', 'TSLA 盘前波动较大，建议关注 240-250 美元区间突破，设置严格止损。', 'operation', 'us-stock', '["TSLA"]', 65.0, 3, 8),
+                (1, '价值投资者', '巴菲特最新持仓分析', '巴菲特近期增持了日本商社和能源股，减持了苹果，值得关注其投资逻辑变化。', 'discussion', 'us-stock', '["AAPL","XOM"]', 82.4, 15, 28),
+                (1, 'AI 研究员', 'AI 芯片赛道分析', 'AI 芯片需求爆发，NVDA、AMD、AVGO 都值得关注，但需注意估值和竞争风险。', 'analysis', 'us-stock', '["NVDA","AMD","AVGO"]', 90.1, 22, 41),
+            ]
+            cursor.executemany('''
+                INSERT INTO signals (user_id, agent_name, title, content, message_type, market, symbols, quality_score, reply_count, participant_count)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', sample_signals)
         
         conn.commit()
     except Exception as e:
@@ -590,6 +625,77 @@ def market_indicators():
             {'id': 3, 'name': 'CPI通胀率', 'value': 3.4, 'period': 'Dec 2023', 'category': 'macro'},
         ]
     })
+
+
+@app.route('/api/signals/feed')
+def signals_feed():
+    limit = int(request.args.get('limit', 20))
+    message_type = request.args.get('message_type', '')
+    market = request.args.get('market', '')
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    query = 'SELECT * FROM signals'
+    params = []
+    conditions = []
+    
+    if message_type:
+        conditions.append('message_type = ?')
+        params.append(message_type)
+    
+    if market:
+        conditions.append('market = ?')
+        params.append(market)
+    
+    if conditions:
+        query += ' WHERE ' + ' AND '.join(conditions)
+    
+    query += ' ORDER BY created_at DESC LIMIT ?'
+    params.append(limit)
+    
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+    
+    signals = []
+    for row in rows:
+        signal = dict(row)
+        try:
+            signal['symbols'] = json.loads(signal['symbols']) if signal['symbols'] else []
+        except:
+            signal['symbols'] = []
+        signals.append(signal)
+    
+    return jsonify({
+        'success': True,
+        'signals': signals
+    })
+
+
+@app.route('/api/signals/<int:signal_id>')
+def signal_detail(signal_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM signals WHERE id = ?', (signal_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        signal = dict(row)
+        try:
+            signal['symbols'] = json.loads(signal['symbols']) if signal['symbols'] else []
+        except:
+            signal['symbols'] = []
+        return jsonify({
+            'success': True,
+            'signal': signal
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'message': '信号不存在'
+        }), 404
 
 
 @app.route('/api/strategies')
