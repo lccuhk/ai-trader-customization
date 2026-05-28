@@ -1221,8 +1221,8 @@ def login():
     cursor = conn.cursor()
     cursor.execute('''
         SELECT id, email, username, display_name FROM users 
-        WHERE email = ? AND password_hash = ?
-    ''', (username, password_hash))
+        WHERE (email = ? OR username = ?) AND password_hash = ?
+    ''', (username, username, password_hash))
     row = cursor.fetchone()
     
     if row:
