@@ -932,6 +932,25 @@ def add_signal_reply(signal_id):
     })
 
 
+@app.route('/api/signals/<int:signal_id>/follow', methods=['GET'])
+@require_auth
+def get_follow_status(signal_id):
+    user_id = request.current_user_id
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM signal_participants WHERE signal_id = ? AND user_id = ?', (signal_id, user_id))
+    existing = cursor.fetchone()
+    
+    conn.close()
+    
+    return jsonify({
+        'success': True,
+        'is_following': existing is not None
+    })
+
+
 @app.route('/api/signals/<int:signal_id>/follow', methods=['POST'])
 @require_auth
 def follow_signal(signal_id):
