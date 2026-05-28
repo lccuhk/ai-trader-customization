@@ -513,16 +513,22 @@ def calculate_position_size():
     account_size = float(data.get('account_size', 0))
     risk_percent = float(data.get('risk_percent', 1))
     entry_price = float(data.get('entry_price', 0))
-    stop_loss = float(data.get('stop_loss', 0))
+    stop_loss = float(data.get('stop_loss', data.get('stop_price', 0)))
     
     if entry_price > 0 and stop_loss > 0 and entry_price != stop_loss:
         risk_amount = account_size * (risk_percent / 100)
         price_risk = abs(entry_price - stop_loss)
+        stop_distance_percent = price_risk / entry_price
         shares = int(risk_amount / price_risk)
+        position_size = shares
         position_value = shares * entry_price
         position_percent = (position_value / account_size) * 100
     else:
+        risk_amount = 0
+        price_risk = 0
+        stop_distance_percent = 0
         shares = 0
+        position_size = 0
         position_value = 0
         position_percent = 0
     
@@ -530,9 +536,12 @@ def calculate_position_size():
         'success': True,
         'result': {
             'shares': shares,
+            'position_size': position_size,
             'position_value': round(position_value, 2),
             'position_percent': round(position_percent, 2),
-            'risk_amount': round(account_size * (risk_percent / 100), 2)
+            'risk_amount': round(risk_amount, 2),
+            'stop_distance': round(price_risk, 2),
+            'stop_distance_percent': round(stop_distance_percent, 4)
         }
     })
 
