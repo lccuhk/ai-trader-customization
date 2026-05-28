@@ -10,6 +10,9 @@ import hashlib
 import secrets
 import os
 import re
+import threading
+import time
+import random
 from datetime import datetime, timedelta
 from functools import wraps
 
@@ -437,27 +440,53 @@ def init_db():
         conn.close()
 
 
+_db_write_lock = threading.Lock()
+
+
 def get_db():
-    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn = sqlite3.connect(DB_PATH, timeout=60)
     conn.row_factory = sqlite3.Row
-    conn.execute('PRAGMA journal_mode=WAL')
-    conn.execute('PRAGMA synchronous=NORMAL')
-    conn.execute('PRAGMA busy_timeout=30000')
+    try:
+        conn.execute('PRAGMA journal_mode=WAL')
+    except:
+        pass
+    try:
+        conn.execute('PRAGMA synchronous=NORMAL')
+    except:
+        pass
+    try:
+        conn.execute('PRAGMA busy_timeout=60000')
+    except:
+        pass
+    try:
+        conn.execute('PRAGMA cache_size=-20000')
+    except:
+        pass
+    try:
+        conn.execute('PRAGMA temp_store=MEMORY')
+    except:
+        pass
     return conn
 
 
-def execute_db_with_retry(operation, max_retries=5, retry_delay=0.5):
-    import time
+def execute_db_with_retry(operation, max_retries=15, base_delay=0.1, use_lock=True):
     last_error = None
     
     for attempt in range(max_retries):
         try:
-            return operation()
+            if use_lock:
+                with _db_write_lock:
+                    return operation()
+            else:
+                return operation()
         except sqlite3.OperationalError as e:
-            if 'locked' in str(e).lower() or 'busy' in str(e).lower():
+            error_msg = str(e).lower()
+            if 'locked' in error_msg or 'busy' in error_msg:
                 last_error = e
                 if attempt < max_retries - 1:
-                    time.sleep(retry_delay * (attempt + 1))
+                    delay = base_delay * (2 ** attempt) + random.uniform(0, base_delay)
+                    delay = min(delay, 5.0)
+                    time.sleep(delay)
                     continue
             raise
     raise last_error
