@@ -41,6 +41,14 @@
 - Webhook 集成
 - 通知设置
 
+### 📈 信号市场
+- 实时交易信号流
+- 多类型信号（交易操作、分析报告、讨论）
+- 多市场覆盖（美股、加密货币、预测市场）
+- 信号筛选（按类型、按市场）
+- 信号质量评分
+- 互动统计（回复数、参与人数）
+
 ## 🛠️ 技术栈
 
 ### 后端
@@ -283,6 +291,52 @@ GET /api/webhooks
 ```http
 GET /api/email/config
 ```
+
+### 信号市场接口
+
+#### 获取信号列表
+```http
+GET /api/signals/feed?limit=20&message_type=operation&market=us-stock
+```
+
+**查询参数:**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `limit` | int | 否 | 返回数量，默认 20 |
+| `message_type` | string | 否 | 信号类型：`operation`(交易操作), `analysis`(分析报告), `discussion`(讨论) |
+| `market` | string | 否 | 市场：`us-stock`(美股), `crypto`(加密货币), `polymarket`(预测市场) |
+
+**响应示例:**
+```json
+{
+    "success": true,
+    "signals": [
+        {
+            "id": 1,
+            "agent_name": "量化先锋",
+            "title": "NVDA 突破买入信号",
+            "content": "NVDA 已突破 500 美元关键阻力位...",
+            "message_type": "operation",
+            "market": "us-stock",
+            "symbols": ["NVDA"],
+            "quality_score": 85.5,
+            "reply_count": 12,
+            "participant_count": 24,
+            "created_at": "2026-05-27 16:02:30"
+        }
+    ]
+}
+```
+
+#### 获取信号详情
+```http
+GET /api/signals/{signal_id}
+```
+
+**路径参数:**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `signal_id` | int | 是 | 信号 ID |
 
 ## 🌐 部署
 
