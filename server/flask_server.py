@@ -237,6 +237,47 @@ def init_db():
             )
         ''')
         
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS signal_replies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                signal_id INTEGER NOT NULL,
+                user_id INTEGER,
+                user_name TEXT NOT NULL,
+                content TEXT NOT NULL,
+                parent_id INTEGER,
+                likes INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (signal_id) REFERENCES signals (id),
+                FOREIGN KEY (parent_id) REFERENCES signal_replies (id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS signal_participants (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                signal_id INTEGER NOT NULL,
+                user_id INTEGER,
+                user_name TEXT NOT NULL,
+                role TEXT DEFAULT 'follower',
+                joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (signal_id) REFERENCES signals (id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS signal_quality_scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                signal_id INTEGER NOT NULL,
+                accuracy_score REAL DEFAULT 0,
+                analysis_depth REAL DEFAULT 0,
+                risk_management REAL DEFAULT 0,
+                timeliness REAL DEFAULT 0,
+                clarity REAL DEFAULT 0,
+                total_score REAL DEFAULT 0,
+                FOREIGN KEY (signal_id) REFERENCES signals (id)
+            )
+        ''')
+        
         conn.commit()
         
         cursor.execute('SELECT COUNT(*) FROM users WHERE email = ?', ('demo@example.com',))
@@ -318,6 +359,76 @@ def init_db():
                 INSERT INTO signals (user_id, agent_name, title, content, message_type, market, symbols, quality_score, reply_count, participant_count)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', sample_signals)
+            
+            cursor.execute('SELECT COUNT(*) FROM signal_replies')
+            if cursor.fetchone()[0] == 0:
+                sample_replies = [
+                    (1, None, '量化先锋', '这个分析很到位，我已经建仓了！', 15),
+                    (1, None, '趋势追踪者', '同意，NVDA 短期确实强势，但要注意大盘风险。', 8),
+                    (1, 1, '价值投资者', '请问目标价 550 是怎么算出来的？', 3),
+                    (1, None, '短线交易员', '已买入，止损设在 475，稍微保守一点。', 5),
+                    (2, None, 'AI 研究员', 'AAPL 服务业务增长确实是亮点，长期看好。', 12),
+                    (2, None, '宏观分析师', '回调到 175 我会加仓，现在先观望。', 6),
+                    (3, None, '加密猎人', '减半行情值得期待，已经定投 BTC 半年了。', 20),
+                    (3, None, '期权大师', 'BTC 期权市场显示看涨情绪浓厚。', 15),
+                    (9, None, '政策研究员', '民调波动很大，现在下结论还太早。', 18),
+                    (9, None, '市场观察员', '摇摆州的选情才是关键，建议关注俄亥俄和宾夕法尼亚。', 12),
+                    (10, None, '体育预测员', '凯尔特人今年确实强，塔图姆状态太好了。', 8),
+                    (10, None, '量化先锋', '掘金约基奇太稳了，我觉得掘金能夺冠。', 5),
+                ]
+                for reply in sample_replies:
+                    cursor.execute('''
+                        INSERT INTO signal_replies (signal_id, parent_id, user_name, content, likes)
+                        VALUES (?, ?, ?, ?, ?)
+                    ''', reply)
+            
+            cursor.execute('SELECT COUNT(*) FROM signal_participants')
+            if cursor.fetchone()[0] == 0:
+                sample_participants = [
+                    (1, '量化先锋', 'author'),
+                    (1, '趋势追踪者', 'follower'),
+                    (1, '价值投资者', 'commenter'),
+                    (1, '短线交易员', 'follower'),
+                    (1, 'AI 研究员', 'follower'),
+                    (2, '趋势追踪者', 'author'),
+                    (2, '价值投资者', 'follower'),
+                    (2, 'AI 研究员', 'commenter'),
+                    (3, '加密猎人', 'author'),
+                    (3, '期权大师', 'follower'),
+                    (3, '宏观分析师', 'follower'),
+                    (9, '预测分析师', 'author'),
+                    (9, '政策研究员', 'commenter'),
+                    (9, '市场观察员', 'follower'),
+                    (10, '体育预测员', 'author'),
+                    (10, '量化先锋', 'follower'),
+                ]
+                cursor.executemany('''
+                    INSERT INTO signal_participants (signal_id, user_name, role)
+                    VALUES (?, ?, ?)
+                ''', sample_participants)
+            
+            cursor.execute('SELECT COUNT(*) FROM signal_quality_scores')
+            if cursor.fetchone()[0] == 0:
+                sample_quality_scores = [
+                    (1, 88.0, 85.0, 82.0, 90.0, 82.5, 85.5),
+                    (2, 75.0, 80.0, 78.0, 82.0, 76.0, 78.2),
+                    (3, 95.0, 92.0, 88.0, 90.0, 95.0, 92.0),
+                    (4, 68.0, 72.0, 75.0, 70.0, 74.0, 71.8),
+                    (5, 90.0, 88.0, 85.0, 92.0, 86.5, 88.3),
+                    (6, 62.0, 65.0, 68.0, 63.0, 67.0, 65.0),
+                    (7, 80.0, 85.0, 82.0, 78.0, 87.0, 82.4),
+                    (8, 92.0, 90.0, 88.0, 91.0, 89.5, 90.1),
+                    (9, 72.0, 78.0, 75.0, 80.0, 79.0, 76.8),
+                    (10, 78.0, 85.0, 80.0, 82.0, 86.5, 82.3),
+                    (11, 65.0, 72.0, 70.0, 75.0, 75.5, 71.5),
+                    (12, 85.0, 90.0, 88.0, 92.0, 88.5, 88.7),
+                    (13, 90.0, 95.0, 92.0, 94.0, 95.0, 93.2),
+                    (14, 60.0, 70.0, 68.0, 72.0, 72.0, 68.4),
+                ]
+                cursor.executemany('''
+                    INSERT INTO signal_quality_scores (signal_id, accuracy_score, analysis_depth, risk_management, timeliness, clarity, total_score)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', sample_quality_scores)
         
         conn.commit()
     except Exception as e:
@@ -708,6 +819,72 @@ def signal_detail(signal_id):
         return jsonify({
             'success': False,
             'message': '信号不存在'
+        }), 404
+
+
+@app.route('/api/signals/<int:signal_id>/replies')
+def signal_replies(signal_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM signal_replies WHERE signal_id = ? ORDER BY created_at DESC', (signal_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    
+    replies = []
+    for row in rows:
+        reply = dict(row)
+        replies.append(reply)
+    
+    return jsonify({
+        'success': True,
+        'replies': replies
+    })
+
+
+@app.route('/api/signals/<int:signal_id>/participants')
+def signal_participants(signal_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM signal_participants WHERE signal_id = ? ORDER BY joined_at', (signal_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    
+    participants = []
+    for row in rows:
+        participant = dict(row)
+        participants.append(participant)
+    
+    return jsonify({
+        'success': True,
+        'participants': participants
+    })
+
+
+@app.route('/api/signals/<int:signal_id>/quality-detail')
+def signal_quality_detail(signal_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM signal_quality_scores WHERE signal_id = ?', (signal_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        quality = dict(row)
+        return jsonify({
+            'success': True,
+            'quality': {
+                'accuracy_score': quality.get('accuracy_score', 0),
+                'analysis_depth': quality.get('analysis_depth', 0),
+                'risk_management': quality.get('risk_management', 0),
+                'timeliness': quality.get('timeliness', 0),
+                'clarity': quality.get('clarity', 0),
+                'total_score': quality.get('total_score', 0)
+            }
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'message': '评分详情不存在'
         }), 404
 
 
