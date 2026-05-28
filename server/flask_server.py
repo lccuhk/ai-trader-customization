@@ -442,7 +442,25 @@ def get_db():
     conn.row_factory = sqlite3.Row
     conn.execute('PRAGMA journal_mode=WAL')
     conn.execute('PRAGMA synchronous=NORMAL')
+    conn.execute('PRAGMA busy_timeout=30000')
     return conn
+
+
+def execute_db_with_retry(operation, max_retries=5, retry_delay=0.5):
+    import time
+    last_error = None
+    
+    for attempt in range(max_retries):
+        try:
+            return operation()
+        except sqlite3.OperationalError as e:
+            if 'locked' in str(e).lower() or 'busy' in str(e).lower():
+                last_error = e
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay * (attempt + 1))
+                    continue
+            raise
+    raise last_error
 
 
 def row_to_dict(row):
@@ -905,33 +923,43 @@ def add_signal_reply(signal_id):
     
     user_id = request.current_user_id
     
-    conn = get_db()
-    cursor = conn.cursor()
+    def _operation():
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT username FROM users WHERE id = ?', (user_id,))
+        user_row = cursor.fetchone()
+        user_name = user_row['username'] if user_row else '匿名用户'
+        
+        cursor.execute('''
+            INSERT INTO signal_replies (signal_id, user_id, user_name, content, parent_id)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (signal_id, user_id, user_name, content, parent_id))
+        
+        reply_id = cursor.lastrowid
+        
+        cursor.execute('UPDATE signals SET reply_count = reply_count + 1 WHERE id = ?', (signal_id,))
+        
+        cursor.execute('SELECT * FROM signal_replies WHERE id = ?', (reply_id,))
+        new_reply = cursor.fetchone()
+        
+        conn.commit()
+        conn.close()
+        
+        return new_reply
     
-    cursor.execute('SELECT username FROM users WHERE id = ?', (user_id,))
-    user_row = cursor.fetchone()
-    user_name = user_row['username'] if user_row else '匿名用户'
-    
-    cursor.execute('''
-        INSERT INTO signal_replies (signal_id, user_id, user_name, content, parent_id)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (signal_id, user_id, user_name, content, parent_id))
-    
-    reply_id = cursor.lastrowid
-    
-    cursor.execute('UPDATE signals SET reply_count = reply_count + 1 WHERE id = ?', (signal_id,))
-    
-    cursor.execute('SELECT * FROM signal_replies WHERE id = ?', (reply_id,))
-    new_reply = cursor.fetchone()
-    
-    conn.commit()
-    conn.close()
-    
-    return jsonify({
-        'success': True,
-        'message': '评论发布成功',
-        'reply': dict(new_reply)
-    })
+    try:
+        new_reply = execute_db_with_retry(_operation)
+        return jsonify({
+            'success': True,
+            'message': '评论发布成功',
+            'reply': dict(new_reply)
+        })
+    except sqlite3.OperationalError as e:
+        return jsonify({
+            'success': False,
+            'message': '数据库繁忙，请稍后重试'
+        }), 503
 
 
 @app.route('/api/signals/<int:signal_id>/follow', methods=['GET'])
@@ -958,69 +986,91 @@ def get_follow_status(signal_id):
 def follow_signal(signal_id):
     user_id = request.current_user_id
     
-    conn = get_db()
-    cursor = conn.cursor()
+    def _operation():
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM signal_participants WHERE signal_id = ? AND user_id = ?', (signal_id, user_id))
+        existing = cursor.fetchone()
+        
+        cursor.execute('SELECT username FROM users WHERE id = ?', (user_id,))
+        user_row = cursor.fetchone()
+        user_name = user_row['username'] if user_row else '匿名用户'
+        
+        if existing:
+            cursor.execute('DELETE FROM signal_participants WHERE id = ?', (existing['id'],))
+            cursor.execute('UPDATE signals SET participant_count = participant_count - 1 WHERE id = ?', (signal_id,))
+            is_following = False
+            message = '已取消关注'
+        else:
+            cursor.execute('''
+                INSERT INTO signal_participants (signal_id, user_id, user_name, role)
+                VALUES (?, ?, ?, 'follower')
+            ''', (signal_id, user_id, user_name))
+            cursor.execute('UPDATE signals SET participant_count = participant_count + 1 WHERE id = ?', (signal_id,))
+            is_following = True
+            message = '关注成功'
+        
+        conn.commit()
+        conn.close()
+        
+        return (is_following, message)
     
-    cursor.execute('SELECT * FROM signal_participants WHERE signal_id = ? AND user_id = ?', (signal_id, user_id))
-    existing = cursor.fetchone()
-    
-    cursor.execute('SELECT username FROM users WHERE id = ?', (user_id,))
-    user_row = cursor.fetchone()
-    user_name = user_row['username'] if user_row else '匿名用户'
-    
-    if existing:
-        cursor.execute('DELETE FROM signal_participants WHERE id = ?', (existing['id'],))
-        cursor.execute('UPDATE signals SET participant_count = participant_count - 1 WHERE id = ?', (signal_id,))
-        is_following = False
-        message = '已取消关注'
-    else:
-        cursor.execute('''
-            INSERT INTO signal_participants (signal_id, user_id, user_name, role)
-            VALUES (?, ?, ?, 'follower')
-        ''', (signal_id, user_id, user_name))
-        cursor.execute('UPDATE signals SET participant_count = participant_count + 1 WHERE id = ?', (signal_id,))
-        is_following = True
-        message = '关注成功'
-    
-    conn.commit()
-    conn.close()
-    
-    return jsonify({
-        'success': True,
-        'message': message,
-        'is_following': is_following
-    })
+    try:
+        is_following, message = execute_db_with_retry(_operation)
+        return jsonify({
+            'success': True,
+            'message': message,
+            'is_following': is_following
+        })
+    except sqlite3.OperationalError as e:
+        return jsonify({
+            'success': False,
+            'message': '数据库繁忙，请稍后重试'
+        }), 503
 
 
 @app.route('/api/signals/replies/<int:reply_id>/like', methods=['POST'])
 @require_auth
 def like_reply(reply_id):
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    cursor.execute('SELECT * FROM signal_replies WHERE id = ?', (reply_id,))
-    reply = cursor.fetchone()
-    
-    if not reply:
+    def _operation():
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM signal_replies WHERE id = ?', (reply_id,))
+        reply = cursor.fetchone()
+        
+        if not reply:
+            conn.close()
+            return (None, '评论不存在', 404)
+        
+        cursor.execute('UPDATE signal_replies SET likes = likes + 1 WHERE id = ?', (reply_id,))
+        
+        cursor.execute('SELECT * FROM signal_replies WHERE id = ?', (reply_id,))
+        updated_reply = cursor.fetchone()
+        
+        conn.commit()
         conn.close()
+        
+        return (updated_reply['likes'], '点赞成功', 200)
+    
+    try:
+        likes, message, status = execute_db_with_retry(_operation)
+        if status == 404:
+            return jsonify({
+                'success': False,
+                'message': message
+            }), 404
+        return jsonify({
+            'success': True,
+            'message': message,
+            'likes': likes
+        })
+    except sqlite3.OperationalError as e:
         return jsonify({
             'success': False,
-            'message': '评论不存在'
-        }), 404
-    
-    cursor.execute('UPDATE signal_replies SET likes = likes + 1 WHERE id = ?', (reply_id,))
-    
-    cursor.execute('SELECT * FROM signal_replies WHERE id = ?', (reply_id,))
-    updated_reply = cursor.fetchone()
-    
-    conn.commit()
-    conn.close()
-    
-    return jsonify({
-        'success': True,
-        'message': '点赞成功',
-        'likes': updated_reply['likes']
-    })
+            'message': '数据库繁忙，请稍后重试'
+        }), 503
 
 
 @app.route('/api/signals', methods=['POST'])
@@ -1051,74 +1101,85 @@ def create_signal():
     
     user_id = request.current_user_id
     
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    cursor.execute('SELECT username FROM users WHERE id = ?', (user_id,))
-    user_row = cursor.fetchone()
-    agent_name = user_row['username'] if user_row else '匿名交易者'
-    
     import json
-    symbols = [symbol] if symbol else []
-    symbols_json = json.dumps(symbols)
-    
-    full_content = content
-    if direction or entry_price or stop_loss or take_profit:
-        full_content += '\n\n---\n'
-        if direction:
-            dir_text = {'long': '看涨', 'short': '看跌', 'neutral': '中性'}.get(direction, direction)
-            full_content += f'\n**交易方向**: {dir_text}'
-        if entry_price:
-            full_content += f'\n**入场价格**: {entry_price}'
-        if stop_loss:
-            full_content += f'\n**止损价格**: {stop_loss}'
-        if take_profit:
-            full_content += f'\n**目标价格**: {take_profit}'
-    
     import random
-    quality_score = round(random.uniform(60, 95), 1)
     
-    cursor.execute('''
-        INSERT INTO signals (user_id, agent_name, title, content, message_type, market, symbols, quality_score)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (user_id, agent_name, title, full_content, message_type, market, symbols_json, quality_score))
+    def _operation():
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT username FROM users WHERE id = ?', (user_id,))
+        user_row = cursor.fetchone()
+        agent_name = user_row['username'] if user_row else '匿名交易者'
+        
+        symbols = [symbol] if symbol else []
+        symbols_json = json.dumps(symbols)
+        
+        full_content = content
+        if direction or entry_price or stop_loss or take_profit:
+            full_content += '\n\n---\n'
+            if direction:
+                dir_text = {'long': '看涨', 'short': '看跌', 'neutral': '中性'}.get(direction, direction)
+                full_content += f'\n**交易方向**: {dir_text}'
+            if entry_price:
+                full_content += f'\n**入场价格**: {entry_price}'
+            if stop_loss:
+                full_content += f'\n**止损价格**: {stop_loss}'
+            if take_profit:
+                full_content += f'\n**目标价格**: {take_profit}'
+        
+        quality_score = round(random.uniform(60, 95), 1)
+        
+        cursor.execute('''
+            INSERT INTO signals (user_id, agent_name, title, content, message_type, market, symbols, quality_score)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, agent_name, title, full_content, message_type, market, symbols_json, quality_score))
+        
+        signal_id = cursor.lastrowid
+        
+        cursor.execute('''
+            INSERT INTO signal_participants (signal_id, user_id, user_name, role)
+            VALUES (?, ?, ?, 'author')
+        ''', (signal_id, user_id, agent_name))
+        
+        accuracy = round(random.uniform(60, 95), 1)
+        analysis_depth = round(random.uniform(60, 95), 1)
+        risk_management = round(random.uniform(60, 95), 1)
+        timeliness = round(random.uniform(60, 95), 1)
+        clarity = round(random.uniform(60, 95), 1)
+        total_score = round((accuracy + analysis_depth + risk_management + timeliness + clarity) / 5, 1)
+        
+        cursor.execute('''
+            INSERT INTO signal_quality_scores (signal_id, accuracy_score, analysis_depth, risk_management, timeliness, clarity, total_score)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (signal_id, accuracy, analysis_depth, risk_management, timeliness, clarity, total_score))
+        
+        cursor.execute('SELECT * FROM signals WHERE id = ?', (signal_id,))
+        new_signal = cursor.fetchone()
+        
+        conn.commit()
+        conn.close()
+        
+        return new_signal
     
-    signal_id = cursor.lastrowid
-    
-    cursor.execute('''
-        INSERT INTO signal_participants (signal_id, user_id, user_name, role)
-        VALUES (?, ?, ?, 'author')
-    ''', (signal_id, user_id, agent_name))
-    
-    accuracy = round(random.uniform(60, 95), 1)
-    analysis_depth = round(random.uniform(60, 95), 1)
-    risk_management = round(random.uniform(60, 95), 1)
-    timeliness = round(random.uniform(60, 95), 1)
-    clarity = round(random.uniform(60, 95), 1)
-    total_score = round((accuracy + analysis_depth + risk_management + timeliness + clarity) / 5, 1)
-    
-    cursor.execute('''
-        INSERT INTO signal_quality_scores (signal_id, accuracy_score, analysis_depth, risk_management, timeliness, clarity, total_score)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (signal_id, accuracy, analysis_depth, risk_management, timeliness, clarity, total_score))
-    
-    cursor.execute('SELECT * FROM signals WHERE id = ?', (signal_id,))
-    new_signal = cursor.fetchone()
-    
-    conn.commit()
-    conn.close()
-    
-    signal_dict = dict(new_signal)
     try:
-        signal_dict['symbols'] = json.loads(signal_dict['symbols']) if signal_dict['symbols'] else []
-    except:
-        signal_dict['symbols'] = []
-    
-    return jsonify({
-        'success': True,
-        'message': '信号发布成功',
-        'signal': signal_dict
-    })
+        new_signal = execute_db_with_retry(_operation)
+        signal_dict = dict(new_signal)
+        try:
+            signal_dict['symbols'] = json.loads(signal_dict['symbols']) if signal_dict['symbols'] else []
+        except:
+            signal_dict['symbols'] = []
+        
+        return jsonify({
+            'success': True,
+            'message': '信号发布成功',
+            'signal': signal_dict
+        })
+    except sqlite3.OperationalError as e:
+        return jsonify({
+            'success': False,
+            'message': '数据库繁忙，请稍后重试'
+        }), 503
 
 
 @app.route('/api/leaderboard/position-pnl')
