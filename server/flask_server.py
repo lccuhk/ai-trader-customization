@@ -696,6 +696,30 @@ def signal_detail(signal_id):
         }), 404
 
 
+@app.route('/api/leaderboard/position-pnl')
+def leaderboard_position_pnl():
+    limit = int(request.args.get('limit', 20))
+    
+    top_agents = [
+        {'id': 1, 'name': '量化先锋', 'position_pnl': 12580.50, 'trade_count': 156, 'position_count': 23},
+        {'id': 2, 'name': '趋势追踪者', 'position_pnl': 8920.30, 'trade_count': 89, 'position_count': 15},
+        {'id': 3, 'name': '价值投资者', 'position_pnl': 6750.80, 'trade_count': 45, 'position_count': 8},
+        {'id': 4, 'name': 'AI 研究员', 'position_pnl': 5420.00, 'trade_count': 78, 'position_count': 12},
+        {'id': 5, 'name': '短线交易员', 'position_pnl': 3210.50, 'trade_count': 234, 'position_count': 45},
+        {'id': 6, 'name': '宏观分析师', 'position_pnl': 2180.20, 'trade_count': 34, 'position_count': 6},
+        {'id': 7, 'name': '加密猎人', 'position_pnl': -1250.80, 'trade_count': 67, 'position_count': 18},
+        {'id': 8, 'name': '期权大师', 'position_pnl': -2890.40, 'trade_count': 112, 'position_count': 28},
+    ]
+    
+    if limit < len(top_agents):
+        top_agents = top_agents[:limit]
+    
+    return jsonify({
+        'success': True,
+        'top_agents': top_agents
+    })
+
+
 @app.route('/api/strategies')
 def strategies():
     conn = get_db()
