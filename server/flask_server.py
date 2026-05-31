@@ -14,6 +14,8 @@ import threading
 import time
 import random
 import fcntl
+import traceback
+import sys
 from datetime import datetime, timedelta
 from functools import wraps
 
@@ -498,7 +500,11 @@ def execute_db_with_retry(operation, max_retries=20, base_delay=0.2, use_lock=Tr
     for attempt in range(max_retries):
         try:
             if use_lock:
-                with _db_file_lock:
+                try:
+                    with _db_file_lock:
+                        return operation()
+                except (OSError, IOError) as e:
+                    print(f"[WARN] 文件锁获取失败，尝试无锁执行: {e}", file=sys.stderr)
                     return operation()
             else:
                 return operation()
@@ -509,10 +515,28 @@ def execute_db_with_retry(operation, max_retries=20, base_delay=0.2, use_lock=Tr
                 if attempt < max_retries - 1:
                     delay = base_delay * (2 ** attempt) + random.uniform(0, base_delay)
                     delay = min(delay, 8.0)
+                    print(f"[WARN] 数据库锁定，第 {attempt + 1}/{max_retries} 次重试，等待 {delay:.2f}s: {e}", file=sys.stderr)
                     time.sleep(delay)
                     continue
+            print(f"[ERROR] 数据库操作失败: {e}", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
             raise
+        except Exception as e:
+            print(f"[ERROR] 操作失败: {e}", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            raise
+    print(f"[ERROR] 重试 {max_retries} 次后仍然失败: {last_error}", file=sys.stderr)
     raise last_error
+
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    print(f"[ERROR] 未捕获的异常: {e}", file=sys.stderr)
+    traceback.print_exc(file=sys.stderr)
+    return jsonify({
+        'success': False,
+        'message': f'服务器内部错误: {str(e)}'
+    }), 500
 
 
 def row_to_dict(row):
