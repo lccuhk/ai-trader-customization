@@ -13,6 +13,7 @@ import re
 import threading
 import time
 import random
+import fcntl
 from datetime import datetime, timedelta
 from functools import wraps
 
@@ -441,6 +442,28 @@ def init_db():
 
 
 _db_write_lock = threading.Lock()
+_db_lock_file = os.path.join(os.path.dirname(DB_PATH), 'db_write.lock')
+
+
+class FileLock:
+    def __init__(self, lock_file):
+        self.lock_file = lock_file
+        self.lock_fd = None
+    
+    def __enter__(self):
+        self.lock_fd = open(self.lock_file, 'w')
+        fcntl.flock(self.lock_fd, fcntl.LOCK_EX)
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.lock_fd:
+            fcntl.flock(self.lock_fd, fcntl.LOCK_UN)
+            self.lock_fd.close()
+            self.lock_fd = None
+        return False
+
+
+_db_file_lock = FileLock(_db_lock_file)
 
 
 def get_db():
@@ -469,13 +492,13 @@ def get_db():
     return conn
 
 
-def execute_db_with_retry(operation, max_retries=15, base_delay=0.1, use_lock=True):
+def execute_db_with_retry(operation, max_retries=20, base_delay=0.2, use_lock=True):
     last_error = None
     
     for attempt in range(max_retries):
         try:
             if use_lock:
-                with _db_write_lock:
+                with _db_file_lock:
                     return operation()
             else:
                 return operation()
@@ -485,7 +508,7 @@ def execute_db_with_retry(operation, max_retries=15, base_delay=0.1, use_lock=Tr
                 last_error = e
                 if attempt < max_retries - 1:
                     delay = base_delay * (2 ** attempt) + random.uniform(0, base_delay)
-                    delay = min(delay, 5.0)
+                    delay = min(delay, 8.0)
                     time.sleep(delay)
                     continue
             raise
@@ -1328,42 +1351,59 @@ def login():
     
     password_hash = _hash_password(password)
     
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT id, email, username, display_name FROM users 
-        WHERE (email = ? OR username = ?) AND password_hash = ?
-    ''', (username, username, password_hash))
-    row = cursor.fetchone()
-    
-    if row:
-        token = _generate_token()
-        expires_at = (datetime.now() + timedelta(days=30)).isoformat()
-        
+    def _operation():
+        conn = get_db()
+        cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO auth_tokens (user_id, token, expires_at)
-            VALUES (?, ?, ?)
-        ''', (row['id'], token, expires_at))
-        conn.commit()
+            SELECT id, email, username, display_name FROM users 
+            WHERE (email = ? OR username = ?) AND password_hash = ?
+        ''', (username, username, password_hash))
+        row = cursor.fetchone()
         
-        user_username = row['username'] or row['email'].split('@')[0]
-        user_display_name = row['display_name'] or user_username
-        
-        return jsonify({
-            'success': True,
-            'token': token,
-            'user': {
-                'id': row['id'],
-                'username': user_username,
-                'email': row['email'],
-                'display_name': user_display_name
-            }
-        })
-    else:
+        if row:
+            token = _generate_token()
+            expires_at = (datetime.now() + timedelta(days=30)).isoformat()
+            
+            cursor.execute('''
+                INSERT INTO auth_tokens (user_id, token, expires_at)
+                VALUES (?, ?, ?)
+            ''', (row['id'], token, expires_at))
+            conn.commit()
+            
+            user_username = row['username'] or row['email'].split('@')[0]
+            user_display_name = row['display_name'] or user_username
+            
+            conn.close()
+            return ({
+                'success': True,
+                'token': token,
+                'user': {
+                    'id': row['id'],
+                    'username': user_username,
+                    'email': row['email'],
+                    'display_name': user_display_name
+                }
+            }, 200)
+        else:
+            conn.close()
+            return ({
+                'success': False,
+                'message': '用户名或密码错误'
+            }, 401)
+    
+    try:
+        result, status = execute_db_with_retry(_operation)
+        return jsonify(result), status
+    except sqlite3.OperationalError as e:
         return jsonify({
             'success': False,
-            'message': '用户名或密码错误'
-        }), 401
+            'message': '数据库繁忙，请稍后重试'
+        }), 503
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
 
 
 @app.route('/api/auth/register', methods=['POST'])
@@ -1381,35 +1421,44 @@ def register():
     
     password_hash = _hash_password(password)
     
-    conn = get_db()
-    cursor = conn.cursor()
+    def _operation():
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('SELECT id FROM users WHERE email = ?', (email,))
+            if cursor.fetchone():
+                conn.close()
+                return ('邮箱已被注册', 400)
+            
+            cursor.execute('''
+                INSERT INTO users (username, email, password_hash)
+                VALUES (?, ?, ?)
+            ''', (username, email, password_hash))
+            conn.commit()
+            conn.close()
+            return ('注册成功', 200)
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            raise
     
     try:
-        cursor.execute('SELECT id FROM users WHERE email = ?', (email,))
-        if cursor.fetchone():
-            return jsonify({
-                'success': False,
-                'message': '邮箱已被注册'
-            }), 400
-        
-        cursor.execute('''
-            INSERT INTO users (username, email, password_hash)
-            VALUES (?, ?, ?)
-        ''', (username, email, password_hash))
-        conn.commit()
-        
+        message, status = execute_db_with_retry(_operation)
         return jsonify({
-            'success': True,
-            'message': '注册成功'
-        })
+            'success': status == 200,
+            'message': message
+        }), status
+    except sqlite3.OperationalError as e:
+        return jsonify({
+            'success': False,
+            'message': '数据库繁忙，请稍后重试'
+        }), 503
     except Exception as e:
-        conn.rollback()
         return jsonify({
             'success': False,
             'message': str(e)
         }), 500
-    finally:
-        conn.close()
 
 
 @app.route('/api/users/me')
