@@ -13,10 +13,16 @@ import re
 import threading
 import time
 import random
-import fcntl
 import traceback
 import sys
 from datetime import datetime, timedelta
+
+try:
+    import fcntl
+    HAS_FCNTL = True
+except ImportError:
+    HAS_FCNTL = False
+    print("[WARN] fcntl module not available, using thread lock instead", file=sys.stderr)
 from functools import wraps
 
 from flask import Flask, request, jsonify
@@ -451,17 +457,35 @@ class FileLock:
     def __init__(self, lock_file):
         self.lock_file = lock_file
         self.lock_fd = None
+        self._fallback_lock = threading.Lock()
     
     def __enter__(self):
-        self.lock_fd = open(self.lock_file, 'w')
-        fcntl.flock(self.lock_fd, fcntl.LOCK_EX)
+        if HAS_FCNTL:
+            try:
+                self.lock_fd = open(self.lock_file, 'w')
+                fcntl.flock(self.lock_fd, fcntl.LOCK_EX)
+                return self
+            except (OSError, IOError) as e:
+                print(f"[WARN] 文件锁获取失败，使用线程锁: {e}", file=sys.stderr)
+                if self.lock_fd:
+                    self.lock_fd.close()
+                    self.lock_fd = None
+        self._fallback_lock.acquire()
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.lock_fd:
-            fcntl.flock(self.lock_fd, fcntl.LOCK_UN)
+            try:
+                fcntl.flock(self.lock_fd, fcntl.LOCK_UN)
+            except:
+                pass
             self.lock_fd.close()
             self.lock_fd = None
+        else:
+            try:
+                self._fallback_lock.release()
+            except:
+                pass
         return False
 
 
