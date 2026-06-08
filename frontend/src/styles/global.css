@@ -1,0 +1,177 @@
+/* IT 极简风格 - 黑红白绿四色主题 */
+:root {
+  /* 主色调 - 黑白为主 */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-card: #ffffff;
+  --bg-tertiary: #e5e5e5;
+  
+  /* 文字颜色 */
+  --text-primary: #000000;
+  --text-secondary: #333333;
+  --text-muted: #666666;
+  
+  /* 边框 */
+  --border-color: #000000;
+  --border-light: #cccccc;
+  
+  /* 强调色 - 红 */
+  --accent-color: #000000;
+  --accent-hover: #333333;
+  --primary: #000000;
+  
+  /* 状态色 - 红（错误/下跌）、绿（成功/上涨） */
+  --danger-color: #ff0000;
+  --danger: #ff0000;
+  --danger-bg: #ffe5e5;
+  
+  --success-color: #00cc00;
+  --success: #00cc00;
+  --success-bg: #e5ffe5;
+  
+  /* 警告色 - 使用红色调 */
+  --warning-color: #ff3300;
+  --warning: #ff3300;
+}
+
+/* 暗色模式 - 黑底白字 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #000000;
+    --bg-secondary: #1a1a1a;
+    --bg-card: #0d0d0d;
+    --bg-tertiary: #262626;
+    
+    --text-primary: #ffffff;
+    --text-secondary: #cccccc;
+    --text-muted: #999999;
+    
+    --border-color: #ffffff;
+    --border-light: #333333;
+    
+    --accent-color: #ffffff;
+    --accent-hover: #cccccc;
+    --primary: #ffffff;
+    
+    --danger-color: #ff0000;
+    --danger: #ff0000;
+    --danger-bg: #330000;
+    
+    --success-color: #00ff00;
+    --success: #00ff00;
+    --success-bg: #003300;
+    
+    --warning-color: #ff3300;
+    --warning: #ff3300;
+  }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  /* IT 极简风格 - 使用等宽字体 */
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', 
+    'Courier New', monospace;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  min-height: 100vh;
+  letter-spacing: 0.02em;
+}
+
+a {
+  color: var(--accent-color);
+  text-decoration: none;
+  transition: all 0.1s ease;
+  border-bottom: 1px solid transparent;
+}
+
+a:hover {
+  color: var(--danger-color);
+  border-bottom-color: var(--danger-color);
+}
+
+button {
+  font-family: inherit;
+  /* IT 风格 - 方形按钮，黑白边框 */
+  border: 2px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+button:hover {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+}
+
+button:active {
+  transform: translate(1px, 1px);
+}
+
+input,
+textarea,
+select {
+  font-family: inherit;
+  /* IT 风格 - 方形输入框 */
+  border: 2px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  outline: none;
+  transition: all 0.1s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--success-color);
+  box-shadow: 2px 2px 0 var(--success-color);
+}
+
+/* IT 风格滚动条 - 方形，黑白 */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border: 2px solid var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-primary);
+}
+
+/* IT 风格选中文本 - 反色 */
+::selection {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+}
+
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+}

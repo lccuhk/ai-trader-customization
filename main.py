@@ -8,9 +8,19 @@ sys.path.insert(0, SERVER_DIR)
 
 os.chdir(SERVER_DIR)
 
-from flask_server import app, init_db
+from app import app, init_db
+from config import settings
 
 init_db()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8001)), debug=False)
+    print(f"Starting server on {settings.HOST}:{settings.PORT}")
+    print(f"Environment: {settings.FLASK_ENV}")
+    print(f"Database: {'PostgreSQL' if settings.is_postgresql else 'SQLite'}")
+    print(f"Debug: {settings.FLASK_DEBUG}")
+    
+    app.run(
+        host=settings.HOST,
+        port=settings.PORT,
+        debug=settings.FLASK_DEBUG
+    )

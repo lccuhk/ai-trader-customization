@@ -1,45 +1,60 @@
 """
 Configuration Module
 
-配置和环境变量加载
+Centralized configuration management for the application.
 """
 
 import os
-from pathlib import Path
-
-# Load environment variables from .env file in project root
-env_path = Path(__file__).parent.parent.parent / ".env"
+from typing import List
 from dotenv import load_dotenv
 
-load_dotenv(env_path)
+load_dotenv()
 
-# ==================== Configuration ====================
 
-# Database
-DATABASE_URL = os.getenv("DATABASE_URL", "")
+class Settings:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    
+    DATABASE_URL = os.getenv(
+        'DATABASE_URL',
+        f'sqlite:///{os.path.join(BASE_DIR, "data", "clawtrader.db")}'
+    )
+    
+    POSTGRESQL_URL = os.getenv('POSTGRESQL_URL')
+    
+    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+    
+    FLASK_ENV = os.getenv('FLASK_ENV', 'development')
+    FLASK_DEBUG = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
+    
+    PORT = int(os.getenv('PORT', 8001))
+    HOST = os.getenv('HOST', '0.0.0.0')
+    
+    ALLOWED_ORIGINS = os.getenv(
+        'ALLOWED_ORIGINS',
+        'https://trading-agent-for-dscourse.surge.sh,http://localhost:8080'
+    ).split(',')
+    
+    TOKEN_EXPIRE_DAYS = int(os.getenv('TOKEN_EXPIRE_DAYS', 30))
+    
+    DB_POOL_SIZE = int(os.getenv('DB_POOL_SIZE', 10))
+    DB_MAX_OVERFLOW = int(os.getenv('DB_MAX_OVERFLOW', 20))
+    DB_POOL_RECYCLE = int(os.getenv('DB_POOL_RECYCLE', 3600))
+    
+    RATE_LIMIT_PER_MINUTE = int(os.getenv('RATE_LIMIT_PER_MINUTE', 60))
+    
+    LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+    
+    @property
+    def is_development(self) -> bool:
+        return self.FLASK_ENV == 'development'
+    
+    @property
+    def is_production(self) -> bool:
+        return self.FLASK_ENV == 'production'
+    
+    @property
+    def is_postgresql(self) -> bool:
+        return self.DATABASE_URL.startswith('postgresql')
 
-# Cache / Redis
-REDIS_ENABLED = os.getenv("REDIS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
-REDIS_URL = os.getenv("REDIS_URL", "").strip()
-REDIS_PREFIX = os.getenv("REDIS_PREFIX", "ai_trader").strip() or "ai_trader"
 
-# API Keys
-ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY", "demo")
-ADANOS_API_KEY = os.getenv("ADANOS_API_KEY", "").strip()
-
-# Market data endpoints
-ADANOS_API_BASE_URL = os.getenv("ADANOS_API_BASE_URL", "https://api.adanos.org").strip().rstrip("/")
-# Hyperliquid public info endpoint (used for crypto quotes; no API key required)
-HYPERLIQUID_API_URL = os.getenv("HYPERLIQUID_API_URL", "https://api.hyperliquid.xyz/info")
-
-# CORS
-CORS_ORIGINS = os.getenv("CLAWTRADER_CORS_ORIGINS", "").split(",") if os.getenv("CLAWTRADER_CORS_ORIGINS") else ["http://localhost:3000"]
-
-# Rewards
-SIGNAL_PUBLISH_REWARD = 10  # Points for publishing a signal
-SIGNAL_ADOPT_REWARD = 1     # Points per follower who receives signal
-DISCUSSION_PUBLISH_REWARD = 4  # Points for publishing a discussion
-REPLY_PUBLISH_REWARD = 2       # Points for replying to a strategy/discussion
-
-# Environment
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+settings = Settings()
