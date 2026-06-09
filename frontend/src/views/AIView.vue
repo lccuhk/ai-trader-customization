@@ -123,11 +123,9 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useAIStore } from '@/stores/ai'
 import { useToast } from '@/composables/useToast'
 
-const router = useRouter()
 const aiStore = useAIStore()
 const toast = useToast()
 

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Order, Trade, Position, Portfolio, PortfolioData, ExchangeAccount } from '../types'
+import type { Order, Trade, Position, Portfolio, ExchangeAccount } from '../types'
 import { tradingService } from '../services/trading'
 
 export const useTradingStore = defineStore('trading', () => {

@@ -147,11 +147,8 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTradingStore } from '@/stores/trading'
-import { useWebSocketStore } from '@/stores/websocket'
-
 const { t } = useI18n()
 const tradingStore = useTradingStore()
-const websocketStore = useWebSocketStore()
 
 const isSimulation = ref(true)
 

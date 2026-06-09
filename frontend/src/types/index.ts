@@ -277,16 +277,50 @@ export interface AISignal {
   closed_at?: string
 }
 
+export interface AIAnalysisItem {
+  title: string
+  description: string
+  priority?: 'high' | 'medium' | 'low'
+}
+
 export interface AIAnalysis {
   id: number
   user_id: number
   analysis_type: string
   summary?: string
-  strengths?: string[]
-  weaknesses?: string[]
-  recommendations?: string[]
+  strengths?: AIAnalysisItem[]
+  weaknesses?: AIAnalysisItem[]
+  recommendations?: AIAnalysisItem[]
+  suggestions?: AIAnalysisItem[]
   risk_score?: number
   performance_metrics?: Record<string, any>
+  performance?: {
+    total_trades?: number
+    win_rate?: number
+    profit_loss_ratio?: number
+    sharpe_ratio?: number
+    total_pnl?: number
+    total_pnl_percent?: number
+    [key: string]: any
+  }
+  behavior?: {
+    trading_frequency?: string
+    risk_tolerance?: string
+    preferred_assets?: string[]
+    holding_period?: string
+    [key: string]: any
+  }
+  risk?: {
+    current_exposure?: number
+    max_drawdown?: number
+    var_95?: number
+    var_99?: number
+    concentration_risk?: number
+    [key: string]: any
+  }
+  win_rate?: number
+  profit_loss_ratio?: number
+  sharpe_ratio?: number
   created_at: string
 }
 
@@ -311,8 +345,22 @@ export interface AIStrategy {
   parameters?: Record<string, any>
   risk_level?: string
   target_symbols?: string[]
+  symbol?: string
   is_active: boolean
+  status?: 'active' | 'inactive' | 'testing' | 'deployed'
   backtest_results?: Record<string, any>
+  backtest_result?: {
+    total_return?: number
+    sharpe_ratio?: number
+    max_drawdown?: number
+    win_rate?: number
+    profit_factor?: number
+    total_trades?: number
+    [key: string]: any
+  }
+  expected_return?: number
+  max_drawdown?: number
+  win_rate?: number
   created_at: string
   last_backtest_at?: string
 }
@@ -677,6 +725,7 @@ export interface WSFollowUpdateData {
   signal_id: number
   is_following: boolean
   follower_count: number
+  participant_count: number
 }
 
 export interface WSOnlineUsersData {
@@ -702,6 +751,11 @@ export interface WSTypingData {
   signal_id: number
   user_id: number
   username: string
+  user: {
+    user_id: number
+    username: string
+    display_name: string
+  }
 }
 
 export interface WSTypingStopData {
@@ -719,6 +773,7 @@ export interface WSConnectionStatus {
 export interface WSErrorData {
   type: string
   error: string
+  message: string
   code?: number
 }
 

@@ -311,7 +311,7 @@ async function submitOrder() {
 
   loading.value = true
   try {
-    const result = await tradingStore.createOrder({
+    await tradingStore.createOrder({
       ...orderForm.value,
       is_simulation: isSimulation.value
     })

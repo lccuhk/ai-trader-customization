@@ -160,6 +160,25 @@ export const useAIStore = defineStore('ai', () => {
     }
   }
 
+  const analysisHistory = ref<AIAnalysis[]>([])
+
+  async function getAnalysisHistory(params?: any) {
+    loading.value = true
+    error.value = null
+    try {
+      const response = await aiService.getAnalysisHistory(params)
+      if (response.success && response.data) {
+        analysisHistory.value = response.data.items
+      }
+      return response
+    } catch (e: any) {
+      error.value = e.message || '加载分析历史失败'
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function chat(message: string, context?: any) {
     chatMessages.value.push({
       role: 'user',
@@ -208,6 +227,7 @@ export const useAIStore = defineStore('ai', () => {
   return {
     aiSignals,
     analysis,
+    analysisHistory,
     riskAlerts,
     strategies,
     chatMessages,
@@ -222,6 +242,7 @@ export const useAIStore = defineStore('ai', () => {
     generateStrategy,
     backtestStrategy,
     loadStrategies,
+    getAnalysisHistory,
     chat,
     addRiskAlert,
     addAISignal,

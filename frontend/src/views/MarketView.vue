@@ -64,10 +64,10 @@
               <h3 class="event-title">{{ event.title }}</h3>
               <p class="event-desc">{{ event.description }}</p>
               <div class="event-meta">
-                <span class="event-impact" :class="event.impact_level">
-                  {{ getImpactLabel(event.impact_level) }}
+                <span class="event-impact" :class="event.impact">
+                  {{ getImpactLabel(event.impact) }}
                 </span>
-                <span class="event-market">{{ event.market }}</span>
+                <span class="event-market">{{ event.symbol }}</span>
               </div>
             </div>
           </div>
@@ -87,11 +87,11 @@
             <div class="indicator-values">
               <div class="value-item">
                 <span class="value-label">实际值</span>
-                <span class="value-actual">{{ indicator.actual_value || '--' }}</span>
+                <span class="value-actual">{{ indicator.value || '--' }}</span>
               </div>
               <div class="value-item">
                 <span class="value-label">预期值</span>
-                <span class="value-expected">{{ indicator.expected_value || '--' }}</span>
+                <span class="value-expected">{{ indicator.forecast_value || '--' }}</span>
               </div>
               <div class="value-item">
                 <span class="value-label">前值</span>
@@ -100,8 +100,8 @@
             </div>
             <div class="indicator-footer">
               <span class="indicator-date">{{ formatDate(indicator.release_date) }}</span>
-              <span class="indicator-impact" :class="indicator.impact_level">
-                {{ getImpactLabel(indicator.impact_level) }}
+              <span class="indicator-impact" :class="indicator.impact">
+                {{ getImpactLabel(indicator.impact) }}
               </span>
             </div>
           </div>

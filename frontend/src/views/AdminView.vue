@@ -34,7 +34,7 @@
                 </svg>
               </div>
             </div>
-            <p class="text-sm text-green-600 mt-2">+{{ adminStats?.new_users_today || 0 }} 今日新增</p>
+            <p class="text-sm text-green-600 mt-2">+{{ adminStats?.today.new_users || 0 }} 今日新增</p>
           </div>
 
           <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -56,7 +56,7 @@
             <div class="flex items-center justify-between">
               <div>
                 <p class="text-sm text-gray-500">总交易量</p>
-                <p class="text-2xl font-bold text-gray-900">{{ adminStats?.total_trades || 0 }}</p>
+                <p class="text-2xl font-bold text-gray-900">{{ adminStats?.overview.total_trades || 0 }}</p>
               </div>
               <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
                 <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,14 +64,14 @@
                 </svg>
               </div>
             </div>
-            <p class="text-sm text-gray-500 mt-2">${{ adminStats?.trading.total_volume?.toLocaleString() || 0 }} 交易额</p>
+            <p class="text-sm text-gray-500 mt-2">${{ adminStats?.overview.total_orders?.toLocaleString() || 0 }} 订单数</p>
           </div>
 
           <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div class="flex items-center justify-between">
               <div>
                 <p class="text-sm text-gray-500">待审核信号</p>
-                <p class="text-2xl font-bold text-yellow-600">{{ adminStats?.pending_moderation || 0 }}</p>
+                <p class="text-2xl font-bold text-yellow-600">{{ adminStats?.moderation.pending_count || 0 }}</p>
               </div>
               <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
                 <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -125,7 +125,7 @@
                 </div>
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-medium text-gray-900">{{ log.action }}</p>
-                  <p class="text-xs text-gray-500">{{ log.admin_name }} · {{ formatDate(log.created_at) }}</p>
+                  <p class="text-xs text-gray-500">{{ log.admin?.display_name || 'System' }} · {{ formatDate(log.created_at) }}</p>
                 </div>
               </div>
             </div>
@@ -189,7 +189,7 @@
                       {{ user.is_active ? '活跃' : '未激活' }}
                     </span>
                   </td>
-                  <td class="py-3 px-4 text-sm text-gray-600">{{ formatDate(user.created_at) }}</td>
+                  <td class="py-3 px-4 text-sm text-gray-600">{{ formatDate(user.created_at || '') }}</td>
                   <td class="py-3 px-4">
                     <div class="flex gap-2">
                       <button @click="viewUser(user)" class="text-blue-600 hover:text-blue-800 text-sm">查看</button>
@@ -294,30 +294,30 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="cohort in retentionData" :key="cohort.week" class="border-b border-gray-100">
-                    <td class="py-3 px-4 text-sm font-medium text-gray-900">{{ cohort.week }}</td>
+                  <tr v-for="cohort in retentionData[0]?.cohorts || []" :key="cohort.cohort" class="border-b border-gray-100">
+                    <td class="py-3 px-4 text-sm font-medium text-gray-900">{{ cohort.cohort }}</td>
                     <td class="py-3 px-4 text-center">
                       <span
                         class="px-2 py-1 rounded text-sm"
-                        :class="cohort.d1 >= 50 ? 'bg-green-100 text-green-800' : cohort.d1 >= 30 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'"
+                        :class="getRetentionRate(cohort, 1) >= 50 ? 'bg-green-100 text-green-800' : getRetentionRate(cohort, 1) >= 30 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'"
                       >
-                        {{ cohort.d1.toFixed(1) }}%
+                        {{ getRetentionRate(cohort, 1).toFixed(1) }}%
                       </span>
                     </td>
                     <td class="py-3 px-4 text-center">
                       <span
                         class="px-2 py-1 rounded text-sm"
-                        :class="cohort.d7 >= 30 ? 'bg-green-100 text-green-800' : cohort.d7 >= 15 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'"
+                        :class="getRetentionRate(cohort, 7) >= 30 ? 'bg-green-100 text-green-800' : getRetentionRate(cohort, 7) >= 15 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'"
                       >
-                        {{ cohort.d7.toFixed(1) }}%
+                        {{ getRetentionRate(cohort, 7).toFixed(1) }}%
                       </span>
                     </td>
                     <td class="py-3 px-4 text-center">
                       <span
                         class="px-2 py-1 rounded text-sm"
-                        :class="cohort.d30 >= 15 ? 'bg-green-100 text-green-800' : cohort.d30 >= 5 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'"
+                        :class="getRetentionRate(cohort, 30) >= 15 ? 'bg-green-100 text-green-800' : getRetentionRate(cohort, 30) >= 5 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'"
                       >
-                        {{ cohort.d30.toFixed(1) }}%
+                        {{ getRetentionRate(cohort, 30).toFixed(1) }}%
                       </span>
                     </td>
                   </tr>

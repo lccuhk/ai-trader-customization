@@ -9,93 +9,6 @@
         <span class="logo-cursor">_</span>
       </router-link>
 
-      <!-- 主导航菜单 -->
-      <div class="navbar-menu" v-if="userStore.isLoggedIn">
-        <!-- 交易 -->
-        <router-link to="/trading" class="nav-link" :class="{ active: $route.name === 'Trading' }">
-          <span class="nav-icon">📈</span>
-          <span class="nav-text">{{ t('nav.trading') }}</span>
-        </router-link>
-
-        <!-- 信号广场 -->
-        <router-link to="/" class="nav-link" :class="{ active: $route.name === 'Home' }">
-          <span class="nav-icon">📡</span>
-          <span class="nav-text">{{ t('nav.home') }}</span>
-        </router-link>
-
-        <!-- 策略中心 -->
-        <div class="nav-dropdown">
-          <button class="nav-link dropdown-toggle" :class="{ active: $route.path.startsWith('/strategies') }">
-            <span class="nav-icon">🎯</span>
-            <span class="nav-text">{{ t('nav.strategyCenter') }}</span>
-            <span class="dropdown-arrow">▼</span>
-          </button>
-          <div class="dropdown-menu">
-            <router-link to="/strategies" class="dropdown-item">
-              <span>{{ t('nav.strategyManagement') }}</span>
-            </router-link>
-            <router-link to="/strategies/templates" class="dropdown-item">
-              <span>{{ t('nav.strategyTemplates') }}</span>
-            </router-link>
-          </div>
-        </div>
-
-        <!-- 市场情报 -->
-        <div class="nav-dropdown">
-          <button class="nav-link dropdown-toggle" :class="{ active: $route.path.startsWith('/market') }">
-            <span class="nav-icon">🌐</span>
-            <span class="nav-text">{{ t('nav.marketIntelligence') }}</span>
-            <span class="dropdown-arrow">▼</span>
-          </button>
-          <div class="dropdown-menu">
-            <router-link to="/market" class="dropdown-item">
-              <span>{{ t('nav.marketOverview') }}</span>
-            </router-link>
-            <router-link to="/market/news" class="dropdown-item">
-              <span>{{ t('nav.marketNews') }}</span>
-            </router-link>
-            <router-link to="/market/events" class="dropdown-item">
-              <span>{{ t('nav.marketEvents') }}</span>
-            </router-link>
-            <router-link to="/market/indicators" class="dropdown-item">
-              <span>{{ t('nav.marketIndicators') }}</span>
-            </router-link>
-            <router-link to="/market/sentiment" class="dropdown-item">
-              <span>{{ t('nav.marketSentiment') }}</span>
-            </router-link>
-            <router-link to="/market/trending" class="dropdown-item">
-              <span>{{ t('nav.marketTrending') }}</span>
-            </router-link>
-          </div>
-        </div>
-
-        <!-- 投资组合 -->
-        <router-link to="/portfolio" class="nav-link" :class="{ active: $route.name === 'Portfolio' }">
-          <span class="nav-icon">💼</span>
-          <span class="nav-text">{{ t('nav.portfolio') }}</span>
-        </router-link>
-
-        <!-- 风控中心 -->
-        <div class="nav-dropdown">
-          <button class="nav-link dropdown-toggle" :class="{ active: $route.path.startsWith('/risk') }">
-            <span class="nav-icon">🛡️</span>
-            <span class="nav-text">{{ t('nav.riskCenter') }}</span>
-            <span class="dropdown-arrow">▼</span>
-          </button>
-          <div class="dropdown-menu">
-            <router-link to="/risk/dashboard" class="dropdown-item">
-              <span>{{ t('nav.riskDashboard') }}</span>
-            </router-link>
-            <router-link to="/risk/alerts" class="dropdown-item">
-              <span>{{ t('nav.riskAlerts') }}</span>
-            </router-link>
-            <router-link to="/risk/settings" class="dropdown-item">
-              <span>{{ t('nav.riskSettings') }}</span>
-            </router-link>
-          </div>
-        </div>
-      </div>
-
       <!-- 右侧用户区域 -->
       <div class="navbar-user">
         <!-- 消息通知（移到顶部栏） -->
@@ -285,41 +198,6 @@ async function handleLogout() {
   justify-content: center;
 }
 
-.nav-link {
-  padding: 6px 12px;
-  color: var(--text-secondary);
-  text-decoration: none;
-  font-weight: 500;
-  transition: all 0.1s ease;
-  cursor: pointer;
-  border: 2px solid transparent;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  letter-spacing: 0.02em;
-}
-
-.nav-link:hover {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  border-color: var(--border-color);
-}
-
-.nav-link.active {
-  background: var(--text-primary);
-  color: var(--bg-primary);
-  border-color: var(--text-primary);
-}
-
-.nav-icon {
-  font-size: 14px;
-}
-
-.nav-text {
-  white-space: nowrap;
-}
-
 .navbar-user {
   display: flex;
   align-items: center;
@@ -430,21 +308,6 @@ async function handleLogout() {
   color: var(--text-secondary);
 }
 
-.nav-dropdown {
-  position: relative;
-}
-
-.dropdown-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font: inherit;
-  padding: 6px 12px;
-}
-
 .dropdown-menu {
   position: absolute;
   top: 100%;
@@ -462,7 +325,6 @@ async function handleLogout() {
   margin-top: 4px;
 }
 
-.nav-dropdown:hover .dropdown-menu,
 .user-dropdown:hover .dropdown-menu {
   opacity: 1;
   visibility: visible;

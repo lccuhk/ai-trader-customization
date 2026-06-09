@@ -205,14 +205,14 @@
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div class="p-4 bg-gray-50 rounded-lg text-center">
             <p class="text-sm text-gray-500">总收益</p>
-            <p class="text-2xl font-bold" :class="selectedStrategy.backtest_result?.total_return >= 0 ? 'text-green-600' : 'text-red-600'">
-              {{ selectedStrategy.backtest_result?.total_return >= 0 ? '+' : '' }}{{ selectedStrategy.backtest_result?.total_return?.toFixed(1) }}%
+            <p class="text-2xl font-bold" :class="(selectedStrategy.backtest_result?.total_return ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'">
+              {{ (selectedStrategy.backtest_result?.total_return ?? 0) >= 0 ? '+' : '' }}{{ selectedStrategy.backtest_result?.total_return?.toFixed(1) }}%
             </p>
           </div>
           <div class="p-4 bg-gray-50 rounded-lg text-center">
             <p class="text-sm text-gray-500">年化收益</p>
-            <p class="text-2xl font-bold" :class="selectedStrategy.backtest_result?.annualized_return >= 0 ? 'text-green-600' : 'text-red-600'">
-              {{ selectedStrategy.backtest_result?.annualized_return >= 0 ? '+' : '' }}{{ selectedStrategy.backtest_result?.annualized_return?.toFixed(1) }}%
+            <p class="text-2xl font-bold" :class="(selectedStrategy.backtest_result?.annualized_return ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'">
+              {{ (selectedStrategy.backtest_result?.annualized_return ?? 0) >= 0 ? '+' : '' }}{{ selectedStrategy.backtest_result?.annualized_return?.toFixed(1) }}%
             </p>
           </div>
           <div class="p-4 bg-gray-50 rounded-lg text-center">
@@ -231,7 +231,7 @@
           </div>
           <div class="p-4 bg-gray-50 rounded-lg">
             <p class="text-sm text-gray-500">胜率</p>
-            <p class="text-xl font-bold" :class="selectedStrategy.backtest_result?.win_rate >= 50 ? 'text-green-600' : 'text-red-600'">
+            <p class="text-xl font-bold" :class="(selectedStrategy.backtest_result?.win_rate ?? 0) >= 50 ? 'text-green-600' : 'text-red-600'">
               {{ selectedStrategy.backtest_result?.win_rate?.toFixed(1) }}%
             </p>
           </div>
@@ -323,7 +323,7 @@ const generateStrategy = async () => {
   generating.value = true
   try {
     const response = await aiService.generateStrategy(strategyForm.value)
-    generatedStrategy.value = response.data
+    generatedStrategy.value = response.data || null
   } catch (error) {
     console.error('生成策略失败:', error)
   } finally {
@@ -336,8 +336,8 @@ const runBacktest = async () => {
   backtesting.value = true
   try {
     const response = await aiService.runBacktest(generatedStrategy.value.id, backtestForm.value)
-    generatedStrategy.value = response.data
-    selectedStrategy.value = response.data
+    generatedStrategy.value = response.data || null
+    selectedStrategy.value = response.data || null
     showBacktestModal.value = false
     await loadStrategies()
   } catch (error) {
@@ -361,7 +361,7 @@ const saveStrategy = async () => {
 const activateStrategy = async (strategy: AIStrategy) => {
   try {
     const response = await aiService.activateStrategy(strategy.id)
-    strategy.status = response.data.status
+    strategy.status = (response.data?.status as 'active' | 'inactive' | 'testing' | 'deployed') || 'active'
     await loadStrategies()
   } catch (error) {
     console.error('激活策略失败:', error)
@@ -375,7 +375,7 @@ const selectStrategy = (strategy: AIStrategy) => {
 const loadStrategies = async () => {
   try {
     const response = await aiService.getStrategies()
-    strategies.value = response.data
+    strategies.value = response.data?.items || []
   } catch (error) {
     console.error('加载策略列表失败:', error)
   }

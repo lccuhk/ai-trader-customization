@@ -35,8 +35,8 @@
             <div class="flex items-center justify-between">
               <div>
                 <p class="text-sm text-gray-500">总胜率</p>
-                <p class="text-2xl font-bold" :class="analysisResult.performance.win_rate >= 50 ? 'text-green-600' : 'text-red-600'">
-                  {{ analysisResult.performance.win_rate?.toFixed(1) }}%
+                <p class="text-2xl font-bold" :class="(analysisResult.performance?.win_rate ?? 0) >= 50 ? 'text-green-600' : 'text-red-600'">
+                  {{ analysisResult.performance?.win_rate?.toFixed(1) }}%
                 </p>
               </div>
               <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
@@ -51,8 +51,8 @@
             <div class="flex items-center justify-between">
               <div>
                 <p class="text-sm text-gray-500">盈亏比</p>
-                <p class="text-2xl font-bold" :class="analysisResult.performance.profit_loss_ratio >= 1.5 ? 'text-green-600' : 'text-yellow-600'">
-                  {{ analysisResult.performance.profit_loss_ratio?.toFixed(2) }}
+                <p class="text-2xl font-bold" :class="(analysisResult.performance?.profit_loss_ratio ?? 0) >= 1.5 ? 'text-green-600' : 'text-yellow-600'">
+                  {{ analysisResult.performance?.profit_loss_ratio?.toFixed(2) }}
                 </p>
               </div>
               <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
@@ -67,8 +67,8 @@
             <div class="flex items-center justify-between">
               <div>
                 <p class="text-sm text-gray-500">夏普比率</p>
-                <p class="text-2xl font-bold" :class="analysisResult.performance.sharpe_ratio >= 1 ? 'text-green-600' : 'text-yellow-600'">
-                  {{ analysisResult.performance.sharpe_ratio?.toFixed(2) }}
+                <p class="text-2xl font-bold" :class="(analysisResult.performance?.sharpe_ratio ?? 0) >= 1 ? 'text-green-600' : 'text-yellow-600'">
+                  {{ analysisResult.performance?.sharpe_ratio?.toFixed(2) }}
                 </p>
               </div>
               <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
@@ -83,8 +83,8 @@
             <div class="flex items-center justify-between">
               <div>
                 <p class="text-sm text-gray-500">最大回撤</p>
-                <p class="text-2xl font-bold" :class="analysisResult.performance.max_drawdown <= 20 ? 'text-green-600' : 'text-red-600'">
-                  {{ analysisResult.performance.max_drawdown?.toFixed(1) }}%
+                <p class="text-2xl font-bold" :class="(analysisResult.performance?.max_drawdown ?? 0) <= 20 ? 'text-green-600' : 'text-red-600'">
+                  {{ analysisResult.performance?.max_drawdown?.toFixed(1) }}%
                 </p>
               </div>
               <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
@@ -100,7 +100,7 @@
           <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">交易行为分析</h3>
             <div class="space-y-4">
-              <div v-for="pattern in analysisResult.behavior.patterns" :key="pattern.name" class="flex items-center justify-between">
+              <div v-for="pattern in analysisResult.behavior?.patterns" :key="pattern.name" class="flex items-center justify-between">
                 <span class="text-gray-600">{{ pattern.name }}</span>
                 <div class="flex items-center gap-2">
                   <div class="w-32 bg-gray-200 rounded-full h-2">
@@ -126,21 +126,21 @@
                 <span
                   class="px-3 py-1 rounded-full text-sm font-medium"
                   :class="{
-                    'bg-green-100 text-green-800': analysisResult.risk.level === 'low',
-                    'bg-yellow-100 text-yellow-800': analysisResult.risk.level === 'medium',
-                    'bg-red-100 text-red-800': analysisResult.risk.level === 'high'
+                    'bg-green-100 text-green-800': analysisResult.risk?.level === 'low',
+                    'bg-yellow-100 text-yellow-800': analysisResult.risk?.level === 'medium',
+                    'bg-red-100 text-red-800': analysisResult.risk?.level === 'high'
                   }"
                 >
-                  {{ analysisResult.risk.level === 'low' ? '低' : analysisResult.risk.level === 'medium' ? '中' : '高' }}
+                  {{ analysisResult.risk?.level === 'low' ? '低' : analysisResult.risk?.level === 'medium' ? '中' : '高' }}
                 </span>
               </div>
               <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span class="text-gray-600">仓位集中度</span>
-                <span class="font-medium">{{ analysisResult.risk.position_concentration?.toFixed(1) }}%</span>
+                <span class="font-medium">{{ analysisResult.risk?.position_concentration?.toFixed(1) }}%</span>
               </div>
               <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span class="text-gray-600">杠杆使用率</span>
-                <span class="font-medium">{{ analysisResult.risk.leverage_usage?.toFixed(1) }}x</span>
+                <span class="font-medium">{{ analysisResult.risk?.leverage_usage?.toFixed(1) }}x</span>
               </div>
             </div>
           </div>
@@ -193,7 +193,7 @@
                 <tr v-for="record in analysisHistory" :key="record.id" class="border-b border-gray-100 hover:bg-gray-50">
                   <td class="py-3 px-4 text-sm text-gray-900">{{ formatDate(record.created_at) }}</td>
                   <td class="py-3 px-4 text-sm text-gray-600">{{ record.analysis_type }}</td>
-                  <td class="py-3 px-4 text-sm" :class="record.win_rate >= 50 ? 'text-green-600' : 'text-red-600'">
+                  <td class="py-3 px-4 text-sm" :class="(record.win_rate ?? 0) >= 50 ? 'text-green-600' : 'text-red-600'">
                     {{ record.win_rate?.toFixed(1) }}%
                   </td>
                   <td class="py-3 px-4 text-sm text-gray-900">{{ record.profit_loss_ratio?.toFixed(2) }}</td>
@@ -232,7 +232,7 @@ const runAnalysis = async () => {
   loading.value = true
   try {
     const response = await aiService.analyzeTrading(analysisType.value)
-    analysisResult.value = response.data
+    analysisResult.value = response.data || null
     await loadHistory()
   } catch (error) {
     console.error('分析失败:', error)
@@ -244,7 +244,7 @@ const runAnalysis = async () => {
 const loadHistory = async () => {
   try {
     const response = await aiService.getAnalysisHistory()
-    analysisHistory.value = response.data
+    analysisHistory.value = response.data?.items || []
   } catch (error) {
     console.error('加载历史记录失败:', error)
   }

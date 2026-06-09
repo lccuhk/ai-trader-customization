@@ -149,6 +149,7 @@ import { analyticsService } from '@/services/analytics'
 import { useToast } from '@/composables/useToast'
 import type { UserAnalytics } from '@/types'
 
+const { error: toastError } = useToast()
 const loading = ref(false)
 const selectedPeriod = ref(30)
 const analytics = ref<UserAnalytics | null>(null)
@@ -186,7 +187,7 @@ async function loadData() {
       analytics.value = response.data
     }
   } catch (e: any) {
-    toast.error(e.message || '加载数据失败')
+    toastError(e.message || '加载数据失败')
   } finally {
     loading.value = false
   }

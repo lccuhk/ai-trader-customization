@@ -123,16 +123,17 @@ export const useSignalStore = defineStore('signal', () => {
       const response = await signalApi.toggleFollow(signalId)
       if (response.data.success) {
         const signal = signals.value.find(s => s.id === signalId)
+        const followData = response.data.data as any
         if (signal) {
-          signal.is_following = response.data.is_following ?? !signal.is_following
+          signal.is_following = followData?.is_following ?? !signal.is_following
           signal.participant_count += signal.is_following ? 1 : -1
         }
         if (currentSignal.value?.id === signalId) {
-          currentSignal.value.is_following = response.data.is_following ?? !currentSignal.value.is_following
+          currentSignal.value.is_following = followData?.is_following ?? !currentSignal.value.is_following
         }
         return { 
           success: true, 
-          is_following: response.data.is_following,
+          is_following: followData?.is_following,
           message: response.data.message
         }
       }

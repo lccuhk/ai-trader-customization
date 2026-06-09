@@ -193,7 +193,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
     unsubscribers.push(
       websocket.on('users:online', (data: WSOnlineUsersData) => {
         onlineUsers.value = data.data
-        onlineCount.value = data.count
+        onlineCount.value = data.count ?? data.data.length
       })
     )
 
@@ -400,7 +400,12 @@ export const useWebSocketStore = defineStore('websocket', () => {
     orders.value.set(order.id, order)
     try {
       const tradingStore = useTradingStore()
-      tradingStore.updateOrder(order)
+      const existingIndex = tradingStore.orders.findIndex(o => o.id === order.id)
+      if (existingIndex >= 0) {
+        tradingStore.orders[existingIndex] = order
+      } else {
+        tradingStore.orders.unshift(order)
+      }
     } catch (e) {
       console.error('[WS] Error updating order in trading store:', e)
     }
@@ -459,10 +464,10 @@ export const useWebSocketStore = defineStore('websocket', () => {
       mentions.value.pop()
     }
     try {
-      const socialStore = useSocialStore()
-      socialStore.addMention(mention)
+      // socialStore may not exist in new architecture, just log
+      console.log('[WS] New mention received:', mention)
     } catch (e) {
-      console.error('[WS] Error adding mention to social store:', e)
+      console.error('[WS] Error handling mention:', e)
     }
   }
 

@@ -76,5 +76,33 @@ export const aiService = {
   async chat(message: string, context?: any): Promise<ApiResponse<{ response: string; timestamp: string }>> {
     const response = await apiClient.post('/ai/chat', { message, context })
     return response.data
+  },
+
+  async getAnalysisHistory(params?: {
+    analysis_type?: string
+    page?: number
+    per_page?: number
+  }): Promise<ApiResponse<PaginatedResponse<AIAnalysis>>> {
+    const response = await apiClient.get('/ai/analysis/history', { params })
+    return response.data
+  },
+
+  async runBacktest(strategyId: number, data?: {
+    start_date?: string
+    end_date?: string
+    initial_capital?: number
+  }): Promise<ApiResponse<AIStrategy>> {
+    const response = await apiClient.post(`/ai/strategies/${strategyId}/backtest`, data)
+    return response.data
+  },
+
+  async saveStrategy(strategy: AIStrategy): Promise<ApiResponse<AIStrategy>> {
+    const response = await apiClient.post('/ai/strategies', strategy)
+    return response.data
+  },
+
+  async activateStrategy(strategyId: number): Promise<ApiResponse<{ status: string }>> {
+    const response = await apiClient.post(`/ai/strategies/${strategyId}/activate`)
+    return response.data
   }
 }
