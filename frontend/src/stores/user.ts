@@ -86,8 +86,8 @@ export const useUserStore = defineStore('user', () => {
     if (!token.value) return
     try {
       const response = await authApi.getCurrentUser()
-      if (response.data.success && response.data.user) {
-        setUser(response.data.user)
+      if (response.data.success && response.data.data) {
+        setUser(response.data.data)
         return true
       } else {
         setUser(null)

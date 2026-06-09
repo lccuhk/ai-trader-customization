@@ -589,3 +589,147 @@ export interface PaginatedResponse<T> {
   page: number
   per_page: number
 }
+
+// Missing types from old architecture
+export interface MarketEvent {
+  id: number
+  title: string
+  description: string
+  event_type: string
+  symbol: string
+  impact: 'low' | 'medium' | 'high'
+  event_date: string
+  created_at: string
+}
+
+export interface EconomicIndicator {
+  id: number
+  name: string
+  value: number
+  previous_value?: number
+  forecast_value?: number
+  unit: string
+  country: string
+  release_date: string
+  impact: 'low' | 'medium' | 'high'
+  created_at: string
+}
+
+export interface LoginRequest {
+  username: string
+  password: string
+}
+
+export interface RegisterRequest {
+  username: string
+  email: string
+  password: string
+  display_name?: string
+}
+
+export interface CreateSignalRequest {
+  title: string
+  content: string
+  message_type: string
+  market: string
+  symbols: string[]
+  direction?: 'long' | 'short'
+  entry_price?: number
+  take_profit?: number
+  stop_loss?: number
+  is_public?: boolean
+  is_simulation?: boolean
+}
+
+export interface CreateReplyRequest {
+  content: string
+  parent_id?: number
+}
+
+export interface PnLUpdate {
+  signal_id: number
+  pnl: number
+  pnl_percent: number
+}
+
+// Additional WebSocket types
+export interface WSNewNotificationData {
+  type: string
+  data: Notification
+}
+
+export interface WSSignalUpdateData {
+  type: string
+  signal_id: number
+  data: Partial<Signal>
+}
+
+export interface WSLikeUpdateData {
+  type: string
+  signal_id: number
+  reply_id?: number
+  likes: number
+  is_liked: boolean
+}
+
+export interface WSFollowUpdateData {
+  type: string
+  signal_id: number
+  is_following: boolean
+  follower_count: number
+}
+
+export interface WSOnlineUsersData {
+  type: string
+  data: OnlineUser[]
+  count?: number
+}
+
+export interface WSUserStatusData {
+  type: string
+  user_id: number
+  status: 'online' | 'offline'
+}
+
+export interface WSSystemMessage {
+  type: string
+  message: string
+  level: 'info' | 'warning' | 'error'
+}
+
+export interface WSTypingData {
+  type: string
+  signal_id: number
+  user_id: number
+  username: string
+}
+
+export interface WSTypingStopData {
+  type: string
+  signal_id: number
+  user_id: number
+}
+
+export interface WSConnectionStatus {
+  type: string
+  connected: boolean
+  reconnecting?: boolean
+}
+
+export interface WSErrorData {
+  type: string
+  error: string
+  code?: number
+}
+
+// Quick settings type
+export interface QuickSettings {
+  theme: 'dark' | 'light'
+  notifications: boolean
+  sound: boolean
+  autoRefresh: boolean
+  refreshInterval: number
+  compactMode: boolean
+  showMarketNews: boolean
+  language: string
+}

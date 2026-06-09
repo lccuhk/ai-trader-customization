@@ -19,17 +19,19 @@ export const supportedLanguages = [
   { code: 'ru-RU', name: 'language.ruRU', flag: '🇷🇺' }
 ]
 
+type LocaleCode = 'zh-CN' | 'en-US' | 'ja-JP' | 'ko-KR' | 'fr-FR' | 'de-DE' | 'es-ES' | 'ru-RU'
+
 const savedLocale = localStorage.getItem('app-locale') || navigator.language || 'zh-CN'
 
 // 确保语言代码在支持列表中
-const getValidLocale = (locale: string): string => {
+const getValidLocale = (locale: string): LocaleCode => {
   const exactMatch = supportedLanguages.find(l => l.code === locale)
-  if (exactMatch) return locale
+  if (exactMatch) return exactMatch.code as LocaleCode
   
   // 尝试匹配主语言代码（如 'zh' 匹配 'zh-CN'）
   const primaryLang = locale.split('-')[0]
   const partialMatch = supportedLanguages.find(l => l.code.startsWith(primaryLang))
-  if (partialMatch) return partialMatch.code
+  if (partialMatch) return partialMatch.code as LocaleCode
   
   return 'zh-CN'
 }

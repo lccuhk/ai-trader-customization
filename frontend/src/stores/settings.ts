@@ -1,46 +1,33 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import type { QuickSettings } from '@/types'
 
-interface QuickSettings {
-  notifications: boolean
-  sound: boolean
-  autoRefresh: boolean
-  refreshInterval: number
-  compactMode: boolean
-  showMarketNews: boolean
+const defaultSettings: QuickSettings = {
+  theme: 'dark',
+  notifications: true,
+  sound: false,
+  autoRefresh: true,
+  refreshInterval: 30,
+  compactMode: false,
+  showMarketNews: true,
+  language: 'zh-CN'
 }
 
 export const useSettingsStore = defineStore('settings', () => {
-  const settings = ref<QuickSettings>(() => {
-    const saved = localStorage.getItem('quickSettings')
-    return saved ? JSON.parse(saved) : {
-      notifications: true,
-      sound: false,
-      autoRefresh: true,
-      refreshInterval: 30,
-      compactMode: false,
-      showMarketNews: true
-    }
-  })
+  const savedSettings = localStorage.getItem('quickSettings')
+  const settings = ref<QuickSettings>(savedSettings ? JSON.parse(savedSettings) : defaultSettings)
 
   function saveSettings() {
     localStorage.setItem('quickSettings', JSON.stringify(settings.value))
   }
 
-  function updateSetting(key: keyof QuickSettings, value: any) {
+  function updateSetting<K extends keyof QuickSettings>(key: K, value: QuickSettings[K]) {
     settings.value[key] = value
     saveSettings()
   }
 
   function resetSettings() {
-    settings.value = {
-      notifications: true,
-      sound: false,
-      autoRefresh: true,
-      refreshInterval: 30,
-      compactMode: false,
-      showMarketNews: true
-    }
+    settings.value = { ...defaultSettings }
     saveSettings()
   }
 

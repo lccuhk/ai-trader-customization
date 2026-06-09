@@ -26,7 +26,7 @@
             <div class="flex items-center justify-between">
               <div>
                 <p class="text-sm text-gray-500">总用户数</p>
-                <p class="text-2xl font-bold text-gray-900">{{ adminStats?.total_users || 0 }}</p>
+                <p class="text-2xl font-bold text-gray-900">{{ adminStats?.overview.total_users || 0 }}</p>
               </div>
               <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                 <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -41,7 +41,7 @@
             <div class="flex items-center justify-between">
               <div>
                 <p class="text-sm text-gray-500">总信号数</p>
-                <p class="text-2xl font-bold text-gray-900">{{ adminStats?.total_signals || 0 }}</p>
+                <p class="text-2xl font-bold text-gray-900">{{ adminStats?.overview.total_signals || 0 }}</p>
               </div>
               <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                 <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -49,7 +49,7 @@
                 </svg>
               </div>
             </div>
-            <p class="text-sm text-green-600 mt-2">+{{ adminStats?.new_signals_today || 0 }} 今日新增</p>
+            <p class="text-sm text-green-600 mt-2">+{{ adminStats?.today.new_signals || 0 }} 今日新增</p>
           </div>
 
           <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -64,7 +64,7 @@
                 </svg>
               </div>
             </div>
-            <p class="text-sm text-gray-500 mt-2">${{ adminStats?.total_volume?.toLocaleString() || 0 }} 交易额</p>
+            <p class="text-sm text-gray-500 mt-2">${{ adminStats?.trading.total_volume?.toLocaleString() || 0 }} 交易额</p>
           </div>
 
           <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -104,17 +104,17 @@
                 <div
                   class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
                   :class="{
-                    'bg-blue-100': log.action_type === 'create',
-                    'bg-yellow-100': log.action_type === 'update',
-                    'bg-red-100': log.action_type === 'delete'
+                    'bg-blue-100': log.action === 'create',
+                    'bg-yellow-100': log.action === 'update',
+                    'bg-red-100': log.action === 'delete'
                   }"
                 >
                   <svg
                     class="w-4 h-4"
                     :class="{
-                      'text-blue-600': log.action_type === 'create',
-                      'text-yellow-600': log.action_type === 'update',
-                      'text-red-600': log.action_type === 'delete'
+                      'text-blue-600': log.action === 'create',
+                      'text-yellow-600': log.action === 'update',
+                      'text-red-600': log.action === 'delete'
                     }"
                     fill="none"
                     stroke="currentColor"
@@ -263,7 +263,7 @@
           <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">漏斗分析</h3>
             <div class="space-y-4">
-              <div v-for="step in funnelData" :key="step.name" class="flex items-center gap-4">
+              <div v-for="step in funnelData[0]?.steps || []" :key="step.name" class="flex items-center gap-4">
                 <div class="w-32 text-sm text-gray-600">{{ step.name }}</div>
                 <div class="flex-1">
                   <div class="h-8 bg-gray-100 rounded-lg overflow-hidden">
@@ -459,6 +459,11 @@ const filteredUsers = computed(() => {
   return result
 })
 
+const getRetentionRate = (cohort: any, day: number): number => {
+  const retention = cohort.retention?.find((r: any) => r.week === day)
+  return retention?.rate || 0
+}
+
 const loadData = async () => {
   try {
     const [statsRes, usersRes, signalsRes, logsRes, funnelRes, retentionRes] = await Promise.all([
@@ -469,12 +474,12 @@ const loadData = async () => {
       adminService.getFunnelAnalysis({}),
       adminService.getRetentionAnalysis({})
     ])
-    adminStats.value = statsRes.data
-    users.value = usersRes.data
-    pendingSignals.value = signalsRes.data
-    recentLogs.value = logsRes.data
-    funnelData.value = funnelRes.data
-    retentionData.value = retentionRes.data
+    adminStats.value = statsRes.data || null
+    users.value = Array.isArray(usersRes.data) ? usersRes.data : (usersRes.data as any)?.items || []
+    pendingSignals.value = signalsRes.data || []
+    recentLogs.value = logsRes.data || []
+    funnelData.value = Array.isArray(funnelRes.data) ? funnelRes.data : (funnelRes.data ? [funnelRes.data] : [])
+    retentionData.value = Array.isArray(retentionRes.data) ? retentionRes.data : (retentionRes.data ? [retentionRes.data] : [])
   } catch (error) {
     console.error('加载数据失败:', error)
   }

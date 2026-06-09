@@ -4,35 +4,36 @@ Flask Backend Server
 Flask 版本的后端服务，兼容性更好，支持所有 Python 版本
 """
 
+import sqlite3
 import json
 import hashlib
 import secrets
 import os
 import re
+import threading
 import time
 import random
 import traceback
 import sys
+import ipaddress
 from datetime import datetime, timedelta
+
+try:
+    import fcntl
+    HAS_FCNTL = True
+except ImportError:
+    HAS_FCNTL = False
+    print("[WARN] fcntl module not available, using thread lock instead", file=sys.stderr)
 from functools import wraps
 
 from flask import Flask, request, jsonify
-from sqlalchemy import text, func, and_
-from sqlalchemy.orm import joinedload
-
-from database import SessionLocal, get_db_session, init_db as orm_init_db
-from models import (
-    User, AuthToken, Signal, SignalReply, SignalParticipant,
-    SignalQualityScore, Notification, NotificationSetting, Strategy,
-    StrategyTemplate, UserStats, MarketNews, MarketEvent,
-    EconomicIndicator, EmailConfig, Webhook
-)
 
 app = Flask(__name__)
 
 ALLOWED_ORIGINS = [
     'http://localhost:8080',
     'http://localhost:3000',
+    'http://localhost:3001',
     'https://trading-agent-for-dscourse.surge.sh',
     'https://trading-agent-backend.deta.app',
     'https://trading-agent-for-dscourse-backend.onrender.com',
@@ -60,6 +61,10 @@ def after_request(response):
         response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, 'data', 'clawtrader.db')
+
+
 def _hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -68,179 +73,486 @@ def _generate_token():
     return secrets.token_hex(32)
 
 
-def model_to_dict(model):
-    if model is None:
-        return None
-    result = {}
-    for column in model.__table__.columns:
-        value = getattr(model, column.name)
-        if isinstance(value, datetime):
-            result[column.name] = value.isoformat()
+def init_db():
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                display_name TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user_stats (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                total_trades INTEGER DEFAULT 0,
+                winning_trades INTEGER DEFAULT 0,
+                losing_trades INTEGER DEFAULT 0,
+                total_pnl REAL DEFAULT 0,
+                win_rate REAL DEFAULT 0,
+                sharpe_ratio REAL DEFAULT 0,
+                max_drawdown REAL DEFAULT 0,
+                avg_win REAL DEFAULT 0,
+                avg_loss REAL DEFAULT 0,
+                profit_factor REAL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS notifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                message TEXT,
+                notification_type TEXT,
+                priority TEXT DEFAULT 'normal',
+                is_read INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS strategies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                description TEXT,
+                strategy_type TEXT,
+                code TEXT,
+                parameters TEXT,
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS market_news (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                content TEXT,
+                source TEXT,
+                category TEXT,
+                symbol TEXT,
+                impact_score INTEGER,
+                sentiment TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS market_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                date TEXT,
+                importance TEXT,
+                category TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS economic_indicators (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                value REAL,
+                period TEXT,
+                category TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS strategy_templates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                description TEXT,
+                category TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS webhooks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                url TEXT NOT NULL,
+                events TEXT,
+                active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS email_configs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                smtp_host TEXT,
+                smtp_port INTEGER,
+                smtp_user TEXT,
+                smtp_password TEXT,
+                from_email TEXT,
+                enabled INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS notification_settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                email_enabled INTEGER DEFAULT 1,
+                push_enabled INTEGER DEFAULT 1,
+                price_alerts INTEGER DEFAULT 1,
+                signal_alerts INTEGER DEFAULT 1,
+                risk_alerts INTEGER DEFAULT 1,
+                system_alerts INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS auth_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                token TEXT UNIQUE NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS signals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                agent_name TEXT NOT NULL,
+                title TEXT NOT NULL,
+                content TEXT,
+                message_type TEXT DEFAULT 'operation',
+                market TEXT DEFAULT 'us-stock',
+                symbols TEXT,
+                quality_score REAL DEFAULT 0,
+                reply_count INTEGER DEFAULT 0,
+                participant_count INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS signal_replies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                signal_id INTEGER NOT NULL,
+                user_id INTEGER,
+                user_name TEXT NOT NULL,
+                content TEXT NOT NULL,
+                parent_id INTEGER,
+                likes INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (signal_id) REFERENCES signals (id),
+                FOREIGN KEY (parent_id) REFERENCES signal_replies (id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS signal_participants (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                signal_id INTEGER NOT NULL,
+                user_id INTEGER,
+                user_name TEXT NOT NULL,
+                role TEXT DEFAULT 'follower',
+                joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (signal_id) REFERENCES signals (id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS signal_quality_scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                signal_id INTEGER NOT NULL,
+                accuracy_score REAL DEFAULT 0,
+                analysis_depth REAL DEFAULT 0,
+                risk_management REAL DEFAULT 0,
+                timeliness REAL DEFAULT 0,
+                clarity REAL DEFAULT 0,
+                total_score REAL DEFAULT 0,
+                FOREIGN KEY (signal_id) REFERENCES signals (id)
+            )
+        ''')
+        
+        conn.commit()
+        
+        cursor.execute('SELECT COUNT(*) FROM users WHERE email = ?', ('demo@example.com',))
+        if cursor.fetchone()[0] == 0:
+            cursor.execute('''
+                INSERT INTO users (email, username, password_hash)
+                VALUES (?, ?, ?)
+            ''', ('demo@example.com', 'demo', _hash_password('demo123456')))
+            
+            cursor.execute('SELECT id FROM users WHERE email = ?', ('demo@example.com',))
+            user_id = cursor.fetchone()[0]
+            
+            try:
+                cursor.execute('SELECT COUNT(*) FROM user_stats WHERE user_id = ?', (user_id,))
+                if cursor.fetchone()[0] == 0:
+                    cursor.execute('''
+                        INSERT INTO user_stats (user_id, total_trades, winning_trades, total_pnl, win_rate, sharpe_ratio)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (user_id, 156, 102, 25430.50, 0.654, 1.85))
+            except:
+                pass
+        
+        cursor.execute('SELECT COUNT(*) FROM notifications')
+        if cursor.fetchone()[0] == 0:
+            sample_notifications = [
+                (1, 'NVDA 价格预警', 'NVDA 价格已突破 $500 阻力位', 'price_alert', 'high'),
+                (1, '新交易信号', '检测到 AAPL 买入信号，强度 85%', 'signal', 'normal'),
+                (1, '风险预警', '您的投资组合集中度超过 30% 阈值', 'risk', 'high'),
+                (1, '系统更新', '系统已完成例行维护', 'system', 'low'),
+            ]
+            cursor.executemany('''
+                INSERT INTO notifications (user_id, title, message, notification_type, priority)
+                VALUES (?, ?, ?, ?, ?)
+            ''', sample_notifications)
+        
+        cursor.execute('SELECT COUNT(*) FROM strategies')
+        if cursor.fetchone()[0] == 0:
+            sample_strategies = [
+                ('移动平均线交叉策略', '基于短期和长期移动平均线的交叉信号', 'trend_following', '# 策略代码', '{}', 1),
+                ('RSI超买超卖策略', '使用RSI指标识别超买超卖区域', 'mean_reversion', '# 策略代码', '{}', 1),
+                ('布林带突破策略', '基于布林带的突破信号', 'volatility', '# 策略代码', '{}', 0),
+            ]
+            cursor.executemany('''
+                INSERT INTO strategies (name, description, strategy_type, code, parameters, is_active)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', sample_strategies)
+        
+        cursor.execute('SELECT COUNT(*) FROM market_news')
+        if cursor.fetchone()[0] == 0:
+            sample_news = [
+                ('美联储暗示可能在年内降息', '美联储主席鲍威尔暗示可能降息', 'Reuters', 'macro', 'SPY', 85, 'bullish'),
+                ('英伟达发布新一代AI芯片', '性能提升3倍', 'TechCrunch', 'earnings', 'NVDA', 90, 'bullish'),
+                ('苹果Vision Pro销量不及预期', '影响供应链企业', 'Bloomberg', 'earnings', 'AAPL', 60, 'bearish'),
+            ]
+            cursor.executemany('''
+                INSERT INTO market_news (title, content, source, category, symbol, impact_score, sentiment)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', sample_news)
+        
+        cursor.execute('SELECT COUNT(*) FROM signals')
+        if cursor.fetchone()[0] == 0:
+            sample_signals = [
+                (1, '量化先锋', 'NVDA 突破买入信号', 'NVDA 已突破 500 美元关键阻力位，成交量放大，MACD 金叉，建议买入，目标价 550 美元，止损 480 美元。', 'operation', 'us-stock', '["NVDA"]', 85.5, 12, 24),
+                (1, '趋势追踪者', 'AAPL 短期回调机会', 'AAPL 近期回调至 180 美元支撑位，RSI 处于超卖区域，可考虑逢低布局，长期看好 AI 服务增长。', 'analysis', 'us-stock', '["AAPL"]', 78.2, 8, 15),
+                (1, '加密猎人', 'BTC 减半行情分析', '比特币第四次减半即将到来，历史数据显示减半后 12-18 个月通常有大幅上涨，建议分批建仓，控制仓位。', 'analysis', 'crypto', '["BTC","ETH"]', 92.0, 25, 45),
+                (1, '期权大师', 'SPY 跨式期权策略', '当前市场波动率处于低位，建议构建 SPY 跨式期权组合，赌未来 1 个月内有大波动。', 'operation', 'us-stock', '["SPY"]', 71.8, 5, 10),
+                (1, '宏观分析师', '美联储利率决议前瞻', '预计美联储将维持利率不变，但可能释放降息信号，建议关注鲍威尔讲话措辞，市场可能出现波动。', 'analysis', 'us-stock', '["SPY","QQQ"]', 88.3, 18, 32),
+                (1, '短线交易员', 'TSLA 日内交易机会', 'TSLA 盘前波动较大，建议关注 240-250 美元区间突破，设置严格止损。', 'operation', 'us-stock', '["TSLA"]', 65.0, 3, 8),
+                (1, '价值投资者', '巴菲特最新持仓分析', '巴菲特近期增持了日本商社和能源股，减持了苹果，值得关注其投资逻辑变化。', 'discussion', 'us-stock', '["AAPL","XOM"]', 82.4, 15, 28),
+                (1, 'AI 研究员', 'AI 芯片赛道分析', 'AI 芯片需求爆发，NVDA、AMD、AVGO 都值得关注，但需注意估值和竞争风险。', 'analysis', 'us-stock', '["NVDA","AMD","AVGO"]', 90.1, 22, 41),
+                (1, '预测分析师', '2026 年美国总统大选预测', '根据最新民调数据，民主党候选人目前领先 3 个百分点，但摇摆州的竞争仍然激烈。建议关注关键摇摆州的选情变化。', 'analysis', 'polymarket', '["PRESIDENT2026"]', 76.8, 32, 56),
+                (1, '体育预测员', 'NBA 总决赛预测', '凯尔特人队在东部决赛中 3-1 领先，晋级总决赛概率高达 85%。西部决赛掘金队与太阳队战成 2-2 平。', 'analysis', 'polymarket', '["NBA-FINALS-2026","CELTICS","NUGGETS","SUNS"]', 82.3, 18, 34),
+                (1, '科技观察员', 'OpenAI 新产品发布预测', '市场普遍预期 OpenAI 将在 Q3 发布 GPT-5，预测概率 68%。建议关注相关 AI 概念股的波动。', 'analysis', 'polymarket', '["OPENAI-GPT5","AI-STOCKS"]', 71.5, 24, 42),
+                (1, '政策研究员', '美联储 6 月降息预测', '联邦基金利率期货显示 6 月降息概率为 42%，7 月降息概率为 78%。建议关注 CPI 数据和鲍威尔讲话。', 'analysis', 'polymarket', '["FED-RATE-JUNE2026","FED-RATE-JULY2026"]', 88.7, 45, 78),
+                (1, '加密分析师', 'ETH ETF 批准预测', 'SEC 批准以太坊现货 ETF 的预测概率已升至 92%，预计批准时间在 2026 年 Q3-Q4。', 'analysis', 'polymarket', '["ETH-ETF","ETH"]', 93.2, 56, 92),
+                (1, '市场观察员', '特斯拉 Robotaxi 发布预测', '特斯拉预计在 8 月发布 Robotaxi 服务，预测成功概率 55%。建议关注 TSLA 股价波动。', 'discussion', 'polymarket', '["TSLA-ROBOTAXI","TSLA"]', 68.4, 28, 51),
+            ]
+            cursor.executemany('''
+                INSERT INTO signals (user_id, agent_name, title, content, message_type, market, symbols, quality_score, reply_count, participant_count)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', sample_signals)
+            
+            cursor.execute('SELECT COUNT(*) FROM signal_replies')
+            if cursor.fetchone()[0] == 0:
+                sample_replies = [
+                    (1, None, '量化先锋', '这个分析很到位，我已经建仓了！', 15),
+                    (1, None, '趋势追踪者', '同意，NVDA 短期确实强势，但要注意大盘风险。', 8),
+                    (1, 1, '价值投资者', '请问目标价 550 是怎么算出来的？', 3),
+                    (1, None, '短线交易员', '已买入，止损设在 475，稍微保守一点。', 5),
+                    (2, None, 'AI 研究员', 'AAPL 服务业务增长确实是亮点，长期看好。', 12),
+                    (2, None, '宏观分析师', '回调到 175 我会加仓，现在先观望。', 6),
+                    (3, None, '加密猎人', '减半行情值得期待，已经定投 BTC 半年了。', 20),
+                    (3, None, '期权大师', 'BTC 期权市场显示看涨情绪浓厚。', 15),
+                    (9, None, '政策研究员', '民调波动很大，现在下结论还太早。', 18),
+                    (9, None, '市场观察员', '摇摆州的选情才是关键，建议关注俄亥俄和宾夕法尼亚。', 12),
+                    (10, None, '体育预测员', '凯尔特人今年确实强，塔图姆状态太好了。', 8),
+                    (10, None, '量化先锋', '掘金约基奇太稳了，我觉得掘金能夺冠。', 5),
+                ]
+                for reply in sample_replies:
+                    cursor.execute('''
+                        INSERT INTO signal_replies (signal_id, parent_id, user_name, content, likes)
+                        VALUES (?, ?, ?, ?, ?)
+                    ''', reply)
+            
+            cursor.execute('SELECT COUNT(*) FROM signal_participants')
+            if cursor.fetchone()[0] == 0:
+                sample_participants = [
+                    (1, '量化先锋', 'author'),
+                    (1, '趋势追踪者', 'follower'),
+                    (1, '价值投资者', 'commenter'),
+                    (1, '短线交易员', 'follower'),
+                    (1, 'AI 研究员', 'follower'),
+                    (2, '趋势追踪者', 'author'),
+                    (2, '价值投资者', 'follower'),
+                    (2, 'AI 研究员', 'commenter'),
+                    (3, '加密猎人', 'author'),
+                    (3, '期权大师', 'follower'),
+                    (3, '宏观分析师', 'follower'),
+                    (9, '预测分析师', 'author'),
+                    (9, '政策研究员', 'commenter'),
+                    (9, '市场观察员', 'follower'),
+                    (10, '体育预测员', 'author'),
+                    (10, '量化先锋', 'follower'),
+                ]
+                cursor.executemany('''
+                    INSERT INTO signal_participants (signal_id, user_name, role)
+                    VALUES (?, ?, ?)
+                ''', sample_participants)
+            
+            cursor.execute('SELECT COUNT(*) FROM signal_quality_scores')
+            if cursor.fetchone()[0] == 0:
+                sample_quality_scores = [
+                    (1, 88.0, 85.0, 82.0, 90.0, 82.5, 85.5),
+                    (2, 75.0, 80.0, 78.0, 82.0, 76.0, 78.2),
+                    (3, 95.0, 92.0, 88.0, 90.0, 95.0, 92.0),
+                    (4, 68.0, 72.0, 75.0, 70.0, 74.0, 71.8),
+                    (5, 90.0, 88.0, 85.0, 92.0, 86.5, 88.3),
+                    (6, 62.0, 65.0, 68.0, 63.0, 67.0, 65.0),
+                    (7, 80.0, 85.0, 82.0, 78.0, 87.0, 82.4),
+                    (8, 92.0, 90.0, 88.0, 91.0, 89.5, 90.1),
+                    (9, 72.0, 78.0, 75.0, 80.0, 79.0, 76.8),
+                    (10, 78.0, 85.0, 80.0, 82.0, 86.5, 82.3),
+                    (11, 65.0, 72.0, 70.0, 75.0, 75.5, 71.5),
+                    (12, 85.0, 90.0, 88.0, 92.0, 88.5, 88.7),
+                    (13, 90.0, 95.0, 92.0, 94.0, 95.0, 93.2),
+                    (14, 60.0, 70.0, 68.0, 72.0, 72.0, 68.4),
+                ]
+                cursor.executemany('''
+                    INSERT INTO signal_quality_scores (signal_id, accuracy_score, analysis_depth, risk_management, timeliness, clarity, total_score)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', sample_quality_scores)
+        
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+    finally:
+        conn.close()
+
+
+_db_write_lock = threading.Lock()
+_db_lock_file = os.path.join(os.path.dirname(DB_PATH), 'db_write.lock')
+
+
+class FileLock:
+    def __init__(self, lock_file):
+        self.lock_file = lock_file
+        self.lock_fd = None
+        self._fallback_lock = threading.Lock()
+    
+    def __enter__(self):
+        if HAS_FCNTL:
+            try:
+                self.lock_fd = open(self.lock_file, 'w')
+                fcntl.flock(self.lock_fd, fcntl.LOCK_EX)
+                return self
+            except (OSError, IOError) as e:
+                print(f"[WARN] 文件锁获取失败，使用线程锁: {e}", file=sys.stderr)
+                if self.lock_fd:
+                    self.lock_fd.close()
+                    self.lock_fd = None
+        self._fallback_lock.acquire()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.lock_fd:
+            try:
+                fcntl.flock(self.lock_fd, fcntl.LOCK_UN)
+            except:
+                pass
+            self.lock_fd.close()
+            self.lock_fd = None
         else:
-            result[column.name] = value
-    return result
+            try:
+                self._fallback_lock.release()
+            except:
+                pass
+        return False
 
 
-def models_to_dict_list(models):
-    return [model_to_dict(m) for m in models]
+_db_file_lock = FileLock(_db_lock_file)
 
 
-def execute_db_with_retry(operation, max_retries=20, base_delay=0.2):
+def get_db():
+    conn = sqlite3.connect(DB_PATH, timeout=60)
+    conn.row_factory = sqlite3.Row
+    try:
+        conn.execute('PRAGMA journal_mode=WAL')
+    except:
+        pass
+    try:
+        conn.execute('PRAGMA synchronous=NORMAL')
+    except:
+        pass
+    try:
+        conn.execute('PRAGMA busy_timeout=60000')
+    except:
+        pass
+    try:
+        conn.execute('PRAGMA cache_size=-20000')
+    except:
+        pass
+    try:
+        conn.execute('PRAGMA temp_store=MEMORY')
+    except:
+        pass
+    return conn
+
+
+def execute_db_with_retry(operation, max_retries=20, base_delay=0.2, use_lock=True):
     last_error = None
     
     for attempt in range(max_retries):
         try:
-            return operation()
-        except Exception as e:
+            if use_lock:
+                try:
+                    with _db_file_lock:
+                        return operation()
+                except (OSError, IOError) as e:
+                    print(f"[WARN] 文件锁获取失败，尝试无锁执行: {e}", file=sys.stderr)
+                    return operation()
+            else:
+                return operation()
+        except sqlite3.OperationalError as e:
             error_msg = str(e).lower()
-            if 'locked' in error_msg or 'busy' in error_msg or 'deadlock' in error_msg:
+            if 'locked' in error_msg or 'busy' in error_msg:
                 last_error = e
                 if attempt < max_retries - 1:
                     delay = base_delay * (2 ** attempt) + random.uniform(0, base_delay)
                     delay = min(delay, 8.0)
-                    print(f"[WARN] 数据库繁忙，第 {attempt + 1}/{max_retries} 次重试，等待 {delay:.2f}s: {e}", file=sys.stderr)
+                    print(f"[WARN] 数据库锁定，第 {attempt + 1}/{max_retries} 次重试，等待 {delay:.2f}s: {e}", file=sys.stderr)
                     time.sleep(delay)
                     continue
             print(f"[ERROR] 数据库操作失败: {e}", file=sys.stderr)
             traceback.print_exc(file=sys.stderr)
             raise
+        except Exception as e:
+            print(f"[ERROR] 操作失败: {e}", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            raise
     print(f"[ERROR] 重试 {max_retries} 次后仍然失败: {last_error}", file=sys.stderr)
     raise last_error
-
-
-def init_db():
-    orm_init_db()
-    
-    db = get_db_session()
-    try:
-        if db.query(User).filter(User.email == 'demo@example.com').count() == 0:
-            demo_user = User(
-                email='demo@example.com',
-                password_hash=_hash_password('demo123')
-            )
-            db.add(demo_user)
-            db.flush()
-            
-            if db.query(UserStats).filter(UserStats.user_id == demo_user.id).count() == 0:
-                demo_stats = UserStats(
-                    user_id=demo_user.id,
-                    total_trades=156,
-                    winning_trades=102,
-                    total_pnl=25430.50,
-                    win_rate=0.654,
-                    sharpe_ratio=1.85
-                )
-                db.add(demo_stats)
-        
-        if db.query(Notification).count() == 0:
-            sample_notifications = [
-                Notification(user_id=1, title='NVDA 价格预警', message='NVDA 价格已突破 $500 阻力位', notification_type='price_alert', priority='high'),
-                Notification(user_id=1, title='新交易信号', message='检测到 AAPL 买入信号，强度 85%', notification_type='signal', priority='normal'),
-                Notification(user_id=1, title='风险预警', message='您的投资组合集中度超过 30% 阈值', notification_type='risk', priority='high'),
-                Notification(user_id=1, title='系统更新', message='系统已完成例行维护', notification_type='system', priority='low'),
-            ]
-            db.add_all(sample_notifications)
-        
-        if db.query(Strategy).count() == 0:
-            sample_strategies = [
-                Strategy(name='移动平均线交叉策略', description='基于短期和长期移动平均线的交叉信号', strategy_type='trend_following', code='# 策略代码', parameters={}, is_active=True),
-                Strategy(name='RSI超买超卖策略', description='使用RSI指标识别超买超卖区域', strategy_type='mean_reversion', code='# 策略代码', parameters={}, is_active=True),
-                Strategy(name='布林带突破策略', description='基于布林带的突破信号', strategy_type='volatility', code='# 策略代码', parameters={}, is_active=False),
-            ]
-            db.add_all(sample_strategies)
-        
-        if db.query(MarketNews).count() == 0:
-            sample_news = [
-                MarketNews(title='美联储暗示可能在年内降息', content='美联储主席鲍威尔暗示可能降息', source='Reuters', category='macro', symbol='SPY', impact_score=85, sentiment='bullish'),
-                MarketNews(title='英伟达发布新一代AI芯片', content='性能提升3倍', source='TechCrunch', category='earnings', symbol='NVDA', impact_score=90, sentiment='bullish'),
-                MarketNews(title='苹果Vision Pro销量不及预期', content='影响供应链企业', source='Bloomberg', category='earnings', symbol='AAPL', impact_score=60, sentiment='bearish'),
-            ]
-            db.add_all(sample_news)
-        
-        if db.query(Signal).count() == 0:
-            sample_signals = [
-                Signal(user_id=1, agent_name='量化先锋', title='NVDA 突破买入信号', content='NVDA 已突破 500 美元关键阻力位，成交量放大，MACD 金叉，建议买入，目标价 550 美元，止损 480 美元。', message_type='operation', market='us-stock', symbols=['NVDA'], quality_score=85.5, reply_count=12, participant_count=24),
-                Signal(user_id=1, agent_name='趋势追踪者', title='AAPL 短期回调机会', content='AAPL 近期回调至 180 美元支撑位，RSI 处于超卖区域，可考虑逢低布局，长期看好 AI 服务增长。', message_type='analysis', market='us-stock', symbols=['AAPL'], quality_score=78.2, reply_count=8, participant_count=15),
-                Signal(user_id=1, agent_name='加密猎人', title='BTC 减半行情分析', content='比特币第四次减半即将到来，历史数据显示减半后 12-18 个月通常有大幅上涨，建议分批建仓，控制仓位。', message_type='analysis', market='crypto', symbols=['BTC','ETH'], quality_score=92.0, reply_count=25, participant_count=45),
-                Signal(user_id=1, agent_name='期权大师', title='SPY 跨式期权策略', content='当前市场波动率处于低位，建议构建 SPY 跨式期权组合，赌未来 1 个月内有大波动。', message_type='operation', market='us-stock', symbols=['SPY'], quality_score=71.8, reply_count=5, participant_count=10),
-                Signal(user_id=1, agent_name='宏观分析师', title='美联储利率决议前瞻', content='预计美联储将维持利率不变，但可能释放降息信号，建议关注鲍威尔讲话措辞，市场可能出现波动。', message_type='analysis', market='us-stock', symbols=['SPY','QQQ'], quality_score=88.3, reply_count=18, participant_count=32),
-                Signal(user_id=1, agent_name='短线交易员', title='TSLA 日内交易机会', content='TSLA 盘前波动较大，建议关注 240-250 美元区间突破，设置严格止损。', message_type='operation', market='us-stock', symbols=['TSLA'], quality_score=65.0, reply_count=3, participant_count=8),
-                Signal(user_id=1, agent_name='价值投资者', title='巴菲特最新持仓分析', content='巴菲特近期增持了日本商社和能源股，减持了苹果，值得关注其投资逻辑变化。', message_type='discussion', market='us-stock', symbols=['AAPL','XOM'], quality_score=82.4, reply_count=15, participant_count=28),
-                Signal(user_id=1, agent_name='AI 研究员', title='AI 芯片赛道分析', content='AI 芯片需求爆发，NVDA、AMD、AVGO 都值得关注，但需注意估值和竞争风险。', message_type='analysis', market='us-stock', symbols=['NVDA','AMD','AVGO'], quality_score=90.1, reply_count=22, participant_count=41),
-                Signal(user_id=1, agent_name='预测分析师', title='2026 年美国总统大选预测', content='根据最新民调数据，民主党候选人目前领先 3 个百分点，但摇摆州的竞争仍然激烈。建议关注关键摇摆州的选情变化。', message_type='analysis', market='polymarket', symbols=['PRESIDENT2026'], quality_score=76.8, reply_count=32, participant_count=56),
-                Signal(user_id=1, agent_name='体育预测员', title='NBA 总决赛预测', content='凯尔特人队在东部决赛中 3-1 领先，晋级总决赛概率高达 85%。西部决赛掘金队与太阳队战成 2-2 平。', message_type='analysis', market='polymarket', symbols=['NBA-FINALS-2026','CELTICS','NUGGETS','SUNS'], quality_score=82.3, reply_count=18, participant_count=34),
-                Signal(user_id=1, agent_name='科技观察员', title='OpenAI 新产品发布预测', content='市场普遍预期 OpenAI 将在 Q3 发布 GPT-5，预测概率 68%。建议关注相关 AI 概念股的波动。', message_type='analysis', market='polymarket', symbols=['OPENAI-GPT5','AI-STOCKS'], quality_score=71.5, reply_count=24, participant_count=42),
-                Signal(user_id=1, agent_name='政策研究员', title='美联储 6 月降息预测', content='联邦基金利率期货显示 6 月降息概率为 42%，7 月降息概率为 78%。建议关注 CPI 数据和鲍威尔讲话。', message_type='analysis', market='polymarket', symbols=['FED-RATE-JUNE2026','FED-RATE-JULY2026'], quality_score=88.7, reply_count=45, participant_count=78),
-                Signal(user_id=1, agent_name='加密分析师', title='ETH ETF 批准预测', content='SEC 批准以太坊现货 ETF 的预测概率已升至 92%，预计批准时间在 2026 年 Q3-Q4。', message_type='analysis', market='polymarket', symbols=['ETH-ETF','ETH'], quality_score=93.2, reply_count=56, participant_count=92),
-                Signal(user_id=1, agent_name='市场观察员', title='特斯拉 Robotaxi 发布预测', content='特斯拉预计在 8 月发布 Robotaxi 服务，预测成功概率 55%。建议关注 TSLA 股价波动。', message_type='discussion', market='polymarket', symbols=['TSLA-ROBOTAXI','TSLA'], quality_score=68.4, reply_count=28, participant_count=51),
-            ]
-            db.add_all(sample_signals)
-            db.flush()
-            
-            if db.query(SignalReply).count() == 0:
-                sample_replies = [
-                    SignalReply(signal_id=1, user_name='量化先锋', content='这个分析很到位，我已经建仓了！', likes=15),
-                    SignalReply(signal_id=1, user_name='趋势追踪者', content='同意，NVDA 短期确实强势，但要注意大盘风险。', likes=8),
-                    SignalReply(signal_id=1, parent_id=1, user_name='价值投资者', content='请问目标价 550 是怎么算出来的？', likes=3),
-                    SignalReply(signal_id=1, user_name='短线交易员', content='已买入，止损设在 475，稍微保守一点。', likes=5),
-                    SignalReply(signal_id=2, user_name='AI 研究员', content='AAPL 服务业务增长确实是亮点，长期看好。', likes=12),
-                    SignalReply(signal_id=2, user_name='宏观分析师', content='回调到 175 我会加仓，现在先观望。', likes=6),
-                    SignalReply(signal_id=3, user_name='加密猎人', content='减半行情值得期待，已经定投 BTC 半年了。', likes=20),
-                    SignalReply(signal_id=3, user_name='期权大师', content='BTC 期权市场显示看涨情绪浓厚。', likes=15),
-                    SignalReply(signal_id=9, user_name='政策研究员', content='民调波动很大，现在下结论还太早。', likes=18),
-                    SignalReply(signal_id=9, user_name='市场观察员', content='摇摆州的选情才是关键，建议关注俄亥俄和宾夕法尼亚。', likes=12),
-                    SignalReply(signal_id=10, user_name='体育预测员', content='凯尔特人今年确实强，塔图姆状态太好了。', likes=8),
-                    SignalReply(signal_id=10, user_name='量化先锋', content='掘金约基奇太稳了，我觉得掘金能夺冠。', likes=5),
-                ]
-                db.add_all(sample_replies)
-            
-            if db.query(SignalParticipant).count() == 0:
-                sample_participants = [
-                    SignalParticipant(signal_id=1, user_name='量化先锋', role='author'),
-                    SignalParticipant(signal_id=1, user_name='趋势追踪者', role='follower'),
-                    SignalParticipant(signal_id=1, user_name='价值投资者', role='commenter'),
-                    SignalParticipant(signal_id=1, user_name='短线交易员', role='follower'),
-                    SignalParticipant(signal_id=1, user_name='AI 研究员', role='follower'),
-                    SignalParticipant(signal_id=2, user_name='趋势追踪者', role='author'),
-                    SignalParticipant(signal_id=2, user_name='价值投资者', role='follower'),
-                    SignalParticipant(signal_id=2, user_name='AI 研究员', role='commenter'),
-                    SignalParticipant(signal_id=3, user_name='加密猎人', role='author'),
-                    SignalParticipant(signal_id=3, user_name='期权大师', role='follower'),
-                    SignalParticipant(signal_id=3, user_name='宏观分析师', role='follower'),
-                    SignalParticipant(signal_id=9, user_name='预测分析师', role='author'),
-                    SignalParticipant(signal_id=9, user_name='政策研究员', role='commenter'),
-                    SignalParticipant(signal_id=9, user_name='市场观察员', role='follower'),
-                    SignalParticipant(signal_id=10, user_name='体育预测员', role='author'),
-                    SignalParticipant(signal_id=10, user_name='量化先锋', role='follower'),
-                ]
-                db.add_all(sample_participants)
-            
-            if db.query(SignalQualityScore).count() == 0:
-                sample_quality_scores = [
-                    SignalQualityScore(signal_id=1, accuracy_score=88.0, analysis_depth=85.0, risk_management=82.0, timeliness=90.0, clarity=82.5, total_score=85.5),
-                    SignalQualityScore(signal_id=2, accuracy_score=75.0, analysis_depth=80.0, risk_management=78.0, timeliness=82.0, clarity=76.0, total_score=78.2),
-                    SignalQualityScore(signal_id=3, accuracy_score=95.0, analysis_depth=92.0, risk_management=88.0, timeliness=90.0, clarity=95.0, total_score=92.0),
-                    SignalQualityScore(signal_id=4, accuracy_score=68.0, analysis_depth=72.0, risk_management=75.0, timeliness=70.0, clarity=74.0, total_score=71.8),
-                    SignalQualityScore(signal_id=5, accuracy_score=90.0, analysis_depth=88.0, risk_management=85.0, timeliness=92.0, clarity=86.5, total_score=88.3),
-                    SignalQualityScore(signal_id=6, accuracy_score=62.0, analysis_depth=65.0, risk_management=68.0, timeliness=63.0, clarity=67.0, total_score=65.0),
-                    SignalQualityScore(signal_id=7, accuracy_score=80.0, analysis_depth=85.0, risk_management=82.0, timeliness=78.0, clarity=87.0, total_score=82.4),
-                    SignalQualityScore(signal_id=8, accuracy_score=92.0, analysis_depth=90.0, risk_management=88.0, timeliness=91.0, clarity=89.5, total_score=90.1),
-                    SignalQualityScore(signal_id=9, accuracy_score=72.0, analysis_depth=78.0, risk_management=75.0, timeliness=80.0, clarity=79.0, total_score=76.8),
-                    SignalQualityScore(signal_id=10, accuracy_score=78.0, analysis_depth=85.0, risk_management=80.0, timeliness=82.0, clarity=86.5, total_score=82.3),
-                    SignalQualityScore(signal_id=11, accuracy_score=65.0, analysis_depth=72.0, risk_management=70.0, timeliness=75.0, clarity=75.5, total_score=71.5),
-                    SignalQualityScore(signal_id=12, accuracy_score=85.0, analysis_depth=90.0, risk_management=88.0, timeliness=92.0, clarity=88.5, total_score=88.7),
-                    SignalQualityScore(signal_id=13, accuracy_score=90.0, analysis_depth=95.0, risk_management=92.0, timeliness=94.0, clarity=95.0, total_score=93.2),
-                    SignalQualityScore(signal_id=14, accuracy_score=60.0, analysis_depth=70.0, risk_management=68.0, timeliness=72.0, clarity=72.0, total_score=68.4),
-                ]
-                db.add_all(sample_quality_scores)
-        
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        print(f"[ERROR] 初始化数据库失败: {e}", file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
-    finally:
-        db.close()
 
 
 @app.errorhandler(Exception)
@@ -253,6 +565,16 @@ def handle_exception(e):
     }), 500
 
 
+def row_to_dict(row):
+    if row is None:
+        return None
+    return dict(row)
+
+
+def rows_to_dict_list(rows):
+    return [dict(row) for row in rows]
+
+
 def get_current_user_id():
     auth_header = request.headers.get('Authorization', '')
     if not auth_header.startswith('Bearer '):
@@ -262,14 +584,150 @@ def get_current_user_id():
     if not token:
         return None
     
-    db = get_db_session()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT user_id FROM auth_tokens WHERE token = ?', (token,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        return row['user_id']
+    return None
+
+
+ip_request_history = {}
+ip_failed_attempts = {}
+ip_banned = {}
+ip_lock = threading.Lock()
+
+LOGIN_RATE_LIMIT = 5
+LOGIN_RATE_WINDOW = 60
+ME_RATE_LIMIT = 30
+ME_RATE_WINDOW = 60
+MAX_FAILED_ATTEMPTS = 5
+BAN_DURATION = 300
+
+ALLOWED_IP_NETWORKS = [
+    '127.0.0.1/32',
+    '10.0.0.0/8',
+    '172.16.0.0/12',
+    '192.168.0.0/16',
+]
+
+_parsed_networks = []
+for network in ALLOWED_IP_NETWORKS:
     try:
-        auth_token = db.query(AuthToken).filter(AuthToken.token == token).first()
-        if auth_token:
-            return auth_token.user_id
-        return None
-    finally:
-        db.close()
+        _parsed_networks.append(ipaddress.ip_network(network, strict=False))
+    except ValueError as e:
+        print(f"[WARN] Invalid IP network: {network} - {e}", file=sys.stderr)
+
+
+def get_client_ip():
+    if request.headers.get('X-Forwarded-For'):
+        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
+    return request.remote_addr
+
+
+def is_ip_banned(ip):
+    with ip_lock:
+        if ip in ip_banned:
+            ban_time = ip_banned[ip]
+            if time.time() - ban_time < BAN_DURATION:
+                return True
+            else:
+                del ip_banned[ip]
+                if ip in ip_failed_attempts:
+                    del ip_failed_attempts[ip]
+    return False
+
+
+def record_failed_attempt(ip):
+    with ip_lock:
+        if ip not in ip_failed_attempts:
+            ip_failed_attempts[ip] = 0
+        ip_failed_attempts[ip] += 1
+        
+        if ip_failed_attempts[ip] >= MAX_FAILED_ATTEMPTS:
+            ip_banned[ip] = time.time()
+            return True
+    return False
+
+
+def reset_failed_attempts(ip):
+    with ip_lock:
+        if ip in ip_failed_attempts:
+            del ip_failed_attempts[ip]
+        if ip in ip_banned:
+            del ip_banned[ip]
+
+
+def check_rate_limit(ip, limit, window, endpoint):
+    with ip_lock:
+        key = f"{endpoint}:{ip}"
+        now = time.time()
+        
+        if key not in ip_request_history:
+            ip_request_history[key] = []
+        
+        ip_request_history[key] = [
+            t for t in ip_request_history[key] 
+            if now - t < window
+        ]
+        
+        if len(ip_request_history[key]) >= limit:
+            return False
+        
+        ip_request_history[key].append(now)
+        return True
+
+
+def rate_limit(limit, window, endpoint):
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            ip = get_client_ip()
+            
+            if is_ip_banned(ip):
+                return jsonify({
+                    'success': False,
+                    'message': f'IP 已被暂时封禁，请 {BAN_DURATION} 秒后再试'
+                }), 429
+            
+            if not check_rate_limit(ip, limit, window, endpoint):
+                return jsonify({
+                    'success': False,
+                    'message': f'请求过于频繁，请 {window} 秒后再试'
+                }), 429
+            
+            return f(*args, **kwargs)
+        return decorated
+    return decorator
+
+
+def is_ip_allowed(ip):
+    try:
+        ip_addr = ipaddress.ip_address(ip)
+        for network in _parsed_networks:
+            if ip_addr in network:
+                return True
+        return False
+    except ValueError:
+        return False
+
+
+def ip_restriction(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        ip = get_client_ip()
+        
+        if not is_ip_allowed(ip):
+            return jsonify({
+                'success': False,
+                'message': f'IP {ip} 不在允许的网段内，访问被拒绝'
+            }), 403
+        
+        return f(*args, **kwargs)
+    return decorated
 
 
 def require_auth(f):
@@ -490,32 +948,39 @@ def market_news():
     limit = int(request.args.get('limit', 10))
     category = request.args.get('category', '')
     
-    db = get_db_session()
-    try:
-        query = db.query(MarketNews)
-        if category:
-            query = query.filter(MarketNews.category == category)
-        news_list = query.order_by(text('created_at DESC')).limit(limit).all()
-        
-        return jsonify({
-            'success': True,
-            'news': models_to_dict_list(news_list)
-        })
-    finally:
-        db.close()
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    query = 'SELECT * FROM market_news'
+    params = []
+    if category:
+        query += ' WHERE category = ?'
+        params.append(category)
+    query += ' ORDER BY created_at DESC LIMIT ?'
+    params.append(limit)
+    
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+    
+    return jsonify({
+        'success': True,
+        'news': rows_to_dict_list(rows)
+    })
 
 
 @app.route('/api/market/news/<int:news_id>')
 def market_news_detail(news_id):
-    db = get_db_session()
-    try:
-        news = db.query(MarketNews).filter(MarketNews.id == news_id).first()
-        return jsonify({
-            'success': True,
-            'news': model_to_dict(news)
-        })
-    finally:
-        db.close()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM market_news WHERE id = ?', (news_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    return jsonify({
+        'success': True,
+        'news': row_to_dict(row)
+    })
 
 
 @app.route('/api/market/events')
@@ -549,110 +1014,135 @@ def signals_feed():
     message_type = request.args.get('message_type', '')
     market = request.args.get('market', '')
     
-    db = get_db_session()
-    try:
-        query = db.query(Signal)
-        if message_type:
-            query = query.filter(Signal.message_type == message_type)
-        if market:
-            query = query.filter(Signal.market == market)
-        
-        signals = query.order_by(text('created_at DESC')).limit(limit).all()
-        
-        result = []
-        for signal in signals:
-            signal_dict = model_to_dict(signal)
-            signal_dict['symbols'] = signal.symbols if signal.symbols else []
-            result.append(signal_dict)
-        
-        return jsonify({
-            'success': True,
-            'signals': result
-        })
-    finally:
-        db.close()
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    query = 'SELECT * FROM signals'
+    params = []
+    conditions = []
+    
+    if message_type:
+        conditions.append('message_type = ?')
+        params.append(message_type)
+    
+    if market:
+        conditions.append('market = ?')
+        params.append(market)
+    
+    if conditions:
+        query += ' WHERE ' + ' AND '.join(conditions)
+    
+    query += ' ORDER BY created_at DESC LIMIT ?'
+    params.append(limit)
+    
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+    
+    signals = []
+    for row in rows:
+        signal = dict(row)
+        try:
+            signal['symbols'] = json.loads(signal['symbols']) if signal['symbols'] else []
+        except:
+            signal['symbols'] = []
+        signals.append(signal)
+    
+    return jsonify({
+        'success': True,
+        'signals': signals
+    })
 
 
 @app.route('/api/signals/<int:signal_id>')
 def signal_detail(signal_id):
-    db = get_db_session()
-    try:
-        signal = db.query(Signal).filter(Signal.id == signal_id).first()
-        if signal:
-            signal_dict = model_to_dict(signal)
-            signal_dict['symbols'] = signal.symbols if signal.symbols else []
-            return jsonify({
-                'success': True,
-                'signal': signal_dict
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'message': '信号不存在'
-            }), 404
-    finally:
-        db.close()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM signals WHERE id = ?', (signal_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        signal = dict(row)
+        try:
+            signal['symbols'] = json.loads(signal['symbols']) if signal['symbols'] else []
+        except:
+            signal['symbols'] = []
+        return jsonify({
+            'success': True,
+            'signal': signal
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'message': '信号不存在'
+        }), 404
 
 
 @app.route('/api/signals/<int:signal_id>/replies')
 def signal_replies(signal_id):
-    db = get_db_session()
-    try:
-        replies = db.query(SignalReply).filter(
-            SignalReply.signal_id == signal_id
-        ).order_by(text('created_at DESC')).all()
-        
-        return jsonify({
-            'success': True,
-            'replies': models_to_dict_list(replies)
-        })
-    finally:
-        db.close()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM signal_replies WHERE signal_id = ? ORDER BY created_at DESC', (signal_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    
+    replies = []
+    for row in rows:
+        reply = dict(row)
+        replies.append(reply)
+    
+    return jsonify({
+        'success': True,
+        'replies': replies
+    })
 
 
 @app.route('/api/signals/<int:signal_id>/participants')
 def signal_participants(signal_id):
-    db = get_db_session()
-    try:
-        participants = db.query(SignalParticipant).filter(
-            SignalParticipant.signal_id == signal_id
-        ).order_by(SignalParticipant.joined_at).all()
-        
-        return jsonify({
-            'success': True,
-            'participants': models_to_dict_list(participants)
-        })
-    finally:
-        db.close()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM signal_participants WHERE signal_id = ? ORDER BY joined_at', (signal_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    
+    participants = []
+    for row in rows:
+        participant = dict(row)
+        participants.append(participant)
+    
+    return jsonify({
+        'success': True,
+        'participants': participants
+    })
 
 
 @app.route('/api/signals/<int:signal_id>/quality-detail')
 def signal_quality_detail(signal_id):
-    db = get_db_session()
-    try:
-        quality = db.query(SignalQualityScore).filter(
-            SignalQualityScore.signal_id == signal_id
-        ).first()
-        
-        if quality:
-            return jsonify({
-                'success': True,
-                'quality': {
-                    'accuracy_score': quality.accuracy_score or 0,
-                    'analysis_depth': quality.analysis_depth or 0,
-                    'risk_management': quality.risk_management or 0,
-                    'timeliness': quality.timeliness or 0,
-                    'clarity': quality.clarity or 0,
-                    'total_score': quality.total_score or 0
-                }
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'message': '评分详情不存在'
-            }), 404
-    finally:
-        db.close()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM signal_quality_scores WHERE signal_id = ?', (signal_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        quality = dict(row)
+        return jsonify({
+            'success': True,
+            'quality': {
+                'accuracy_score': quality.get('accuracy_score', 0),
+                'analysis_depth': quality.get('analysis_depth', 0),
+                'risk_management': quality.get('risk_management', 0),
+                'timeliness': quality.get('timeliness', 0),
+                'clarity': quality.get('clarity', 0),
+                'total_score': quality.get('total_score', 0)
+            }
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'message': '评分详情不存在'
+        }), 404
 
 
 @app.route('/api/signals/<int:signal_id>/replies', methods=['POST'])
@@ -671,46 +1161,42 @@ def add_signal_reply(signal_id):
     user_id = request.current_user_id
     
     def _operation():
-        db = get_db_session()
-        try:
-            user = db.query(User).filter(User.id == user_id).first()
-            user_name = user.username if user else '匿名用户'
-            
-            new_reply = SignalReply(
-                signal_id=signal_id,
-                user_id=user_id,
-                user_name=user_name,
-                content=content,
-                parent_id=parent_id
-            )
-            db.add(new_reply)
-            
-            signal = db.query(Signal).filter(Signal.id == signal_id).first()
-            if signal:
-                signal.reply_count = (signal.reply_count or 0) + 1
-            
-            db.commit()
-            db.refresh(new_reply)
-            
-            return model_to_dict(new_reply)
-        except Exception as e:
-            db.rollback()
-            raise
-        finally:
-            db.close()
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT username FROM users WHERE id = ?', (user_id,))
+        user_row = cursor.fetchone()
+        user_name = user_row['username'] if user_row else '匿名用户'
+        
+        cursor.execute('''
+            INSERT INTO signal_replies (signal_id, user_id, user_name, content, parent_id)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (signal_id, user_id, user_name, content, parent_id))
+        
+        reply_id = cursor.lastrowid
+        
+        cursor.execute('UPDATE signals SET reply_count = reply_count + 1 WHERE id = ?', (signal_id,))
+        
+        cursor.execute('SELECT * FROM signal_replies WHERE id = ?', (reply_id,))
+        new_reply = cursor.fetchone()
+        
+        conn.commit()
+        conn.close()
+        
+        return new_reply
     
     try:
         new_reply = execute_db_with_retry(_operation)
         return jsonify({
             'success': True,
             'message': '评论发布成功',
-            'reply': new_reply
+            'reply': dict(new_reply)
         })
-    except Exception as e:
+    except sqlite3.OperationalError as e:
         return jsonify({
             'success': False,
-            'message': str(e)
-        }), 500
+            'message': '数据库繁忙，请稍后重试'
+        }), 503
 
 
 @app.route('/api/signals/<int:signal_id>/follow', methods=['GET'])
@@ -718,21 +1204,18 @@ def add_signal_reply(signal_id):
 def get_follow_status(signal_id):
     user_id = request.current_user_id
     
-    db = get_db_session()
-    try:
-        existing = db.query(SignalParticipant).filter(
-            and_(
-                SignalParticipant.signal_id == signal_id,
-                SignalParticipant.user_id == user_id
-            )
-        ).first()
-        
-        return jsonify({
-            'success': True,
-            'is_following': existing is not None
-        })
-    finally:
-        db.close()
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM signal_participants WHERE signal_id = ? AND user_id = ?', (signal_id, user_id))
+    existing = cursor.fetchone()
+    
+    conn.close()
+    
+    return jsonify({
+        'success': True,
+        'is_following': existing is not None
+    })
 
 
 @app.route('/api/signals/<int:signal_id>/follow', methods=['POST'])
@@ -741,46 +1224,34 @@ def follow_signal(signal_id):
     user_id = request.current_user_id
     
     def _operation():
-        db = get_db_session()
-        try:
-            existing = db.query(SignalParticipant).filter(
-                and_(
-                    SignalParticipant.signal_id == signal_id,
-                    SignalParticipant.user_id == user_id
-                )
-            ).first()
-            
-            user = db.query(User).filter(User.id == user_id).first()
-            user_name = user.username if user else '匿名用户'
-            
-            signal = db.query(Signal).filter(Signal.id == signal_id).first()
-            
-            if existing:
-                db.delete(existing)
-                if signal:
-                    signal.participant_count = (signal.participant_count or 0) - 1
-                is_following = False
-                message = '已取消关注'
-            else:
-                new_participant = SignalParticipant(
-                    signal_id=signal_id,
-                    user_id=user_id,
-                    user_name=user_name,
-                    role='follower'
-                )
-                db.add(new_participant)
-                if signal:
-                    signal.participant_count = (signal.participant_count or 0) + 1
-                is_following = True
-                message = '关注成功'
-            
-            db.commit()
-            return (is_following, message)
-        except Exception as e:
-            db.rollback()
-            raise
-        finally:
-            db.close()
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM signal_participants WHERE signal_id = ? AND user_id = ?', (signal_id, user_id))
+        existing = cursor.fetchone()
+        
+        cursor.execute('SELECT username FROM users WHERE id = ?', (user_id,))
+        user_row = cursor.fetchone()
+        user_name = user_row['username'] if user_row else '匿名用户'
+        
+        if existing:
+            cursor.execute('DELETE FROM signal_participants WHERE id = ?', (existing['id'],))
+            cursor.execute('UPDATE signals SET participant_count = participant_count - 1 WHERE id = ?', (signal_id,))
+            is_following = False
+            message = '已取消关注'
+        else:
+            cursor.execute('''
+                INSERT INTO signal_participants (signal_id, user_id, user_name, role)
+                VALUES (?, ?, ?, 'follower')
+            ''', (signal_id, user_id, user_name))
+            cursor.execute('UPDATE signals SET participant_count = participant_count + 1 WHERE id = ?', (signal_id,))
+            is_following = True
+            message = '关注成功'
+        
+        conn.commit()
+        conn.close()
+        
+        return (is_following, message)
     
     try:
         is_following, message = execute_db_with_retry(_operation)
@@ -789,34 +1260,36 @@ def follow_signal(signal_id):
             'message': message,
             'is_following': is_following
         })
-    except Exception as e:
+    except sqlite3.OperationalError as e:
         return jsonify({
             'success': False,
-            'message': str(e)
-        }), 500
+            'message': '数据库繁忙，请稍后重试'
+        }), 503
 
 
 @app.route('/api/signals/replies/<int:reply_id>/like', methods=['POST'])
 @require_auth
 def like_reply(reply_id):
     def _operation():
-        db = get_db_session()
-        try:
-            reply = db.query(SignalReply).filter(SignalReply.id == reply_id).first()
-            
-            if not reply:
-                return (None, '评论不存在', 404)
-            
-            reply.likes = (reply.likes or 0) + 1
-            db.commit()
-            db.refresh(reply)
-            
-            return (reply.likes, '点赞成功', 200)
-        except Exception as e:
-            db.rollback()
-            raise
-        finally:
-            db.close()
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM signal_replies WHERE id = ?', (reply_id,))
+        reply = cursor.fetchone()
+        
+        if not reply:
+            conn.close()
+            return (None, '评论不存在', 404)
+        
+        cursor.execute('UPDATE signal_replies SET likes = likes + 1 WHERE id = ?', (reply_id,))
+        
+        cursor.execute('SELECT * FROM signal_replies WHERE id = ?', (reply_id,))
+        updated_reply = cursor.fetchone()
+        
+        conn.commit()
+        conn.close()
+        
+        return (updated_reply['likes'], '点赞成功', 200)
     
     try:
         likes, message, status = execute_db_with_retry(_operation)
@@ -830,11 +1303,11 @@ def like_reply(reply_id):
             'message': message,
             'likes': likes
         })
-    except Exception as e:
+    except sqlite3.OperationalError as e:
         return jsonify({
             'success': False,
-            'message': str(e)
-        }), 500
+            'message': '数据库繁忙，请稍后重试'
+        }), 503
 
 
 @app.route('/api/signals', methods=['POST'])
@@ -865,95 +1338,85 @@ def create_signal():
     
     user_id = request.current_user_id
     
+    import json
+    import random
+    
     def _operation():
-        db = get_db_session()
-        try:
-            user = db.query(User).filter(User.id == user_id).first()
-            agent_name = user.username if user else '匿名交易者'
-            
-            symbols = [symbol] if symbol else []
-            
-            full_content = content
-            if direction or entry_price or stop_loss or take_profit:
-                full_content += '\n\n---\n'
-                if direction:
-                    dir_text = {'long': '看涨', 'short': '看跌', 'neutral': '中性'}.get(direction, direction)
-                    full_content += f'\n**交易方向**: {dir_text}'
-                if entry_price:
-                    full_content += f'\n**入场价格**: {entry_price}'
-                if stop_loss:
-                    full_content += f'\n**止损价格**: {stop_loss}'
-                if take_profit:
-                    full_content += f'\n**目标价格**: {take_profit}'
-            
-            quality_score = round(random.uniform(60, 95), 1)
-            
-            new_signal = Signal(
-                user_id=user_id,
-                agent_name=agent_name,
-                title=title,
-                content=full_content,
-                message_type=message_type,
-                market=market,
-                symbols=symbols,
-                quality_score=quality_score,
-                reply_count=0,
-                participant_count=1
-            )
-            db.add(new_signal)
-            db.flush()
-            
-            new_participant = SignalParticipant(
-                signal_id=new_signal.id,
-                user_id=user_id,
-                user_name=agent_name,
-                role='author'
-            )
-            db.add(new_participant)
-            
-            accuracy = round(random.uniform(60, 95), 1)
-            analysis_depth = round(random.uniform(60, 95), 1)
-            risk_management = round(random.uniform(60, 95), 1)
-            timeliness = round(random.uniform(60, 95), 1)
-            clarity = round(random.uniform(60, 95), 1)
-            total_score = round((accuracy + analysis_depth + risk_management + timeliness + clarity) / 5, 1)
-            
-            new_quality = SignalQualityScore(
-                signal_id=new_signal.id,
-                accuracy_score=accuracy,
-                analysis_depth=analysis_depth,
-                risk_management=risk_management,
-                timeliness=timeliness,
-                clarity=clarity,
-                total_score=total_score
-            )
-            db.add(new_quality)
-            
-            db.commit()
-            db.refresh(new_signal)
-            
-            signal_dict = model_to_dict(new_signal)
-            signal_dict['symbols'] = new_signal.symbols if new_signal.symbols else []
-            
-            return signal_dict
-        except Exception as e:
-            db.rollback()
-            raise
-        finally:
-            db.close()
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT username FROM users WHERE id = ?', (user_id,))
+        user_row = cursor.fetchone()
+        agent_name = user_row['username'] if user_row else '匿名交易者'
+        
+        symbols = [symbol] if symbol else []
+        symbols_json = json.dumps(symbols)
+        
+        full_content = content
+        if direction or entry_price or stop_loss or take_profit:
+            full_content += '\n\n---\n'
+            if direction:
+                dir_text = {'long': '看涨', 'short': '看跌', 'neutral': '中性'}.get(direction, direction)
+                full_content += f'\n**交易方向**: {dir_text}'
+            if entry_price:
+                full_content += f'\n**入场价格**: {entry_price}'
+            if stop_loss:
+                full_content += f'\n**止损价格**: {stop_loss}'
+            if take_profit:
+                full_content += f'\n**目标价格**: {take_profit}'
+        
+        quality_score = round(random.uniform(60, 95), 1)
+        
+        cursor.execute('''
+            INSERT INTO signals (user_id, agent_name, title, content, message_type, market, symbols, quality_score)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, agent_name, title, full_content, message_type, market, symbols_json, quality_score))
+        
+        signal_id = cursor.lastrowid
+        
+        cursor.execute('''
+            INSERT INTO signal_participants (signal_id, user_id, user_name, role)
+            VALUES (?, ?, ?, 'author')
+        ''', (signal_id, user_id, agent_name))
+        
+        accuracy = round(random.uniform(60, 95), 1)
+        analysis_depth = round(random.uniform(60, 95), 1)
+        risk_management = round(random.uniform(60, 95), 1)
+        timeliness = round(random.uniform(60, 95), 1)
+        clarity = round(random.uniform(60, 95), 1)
+        total_score = round((accuracy + analysis_depth + risk_management + timeliness + clarity) / 5, 1)
+        
+        cursor.execute('''
+            INSERT INTO signal_quality_scores (signal_id, accuracy_score, analysis_depth, risk_management, timeliness, clarity, total_score)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (signal_id, accuracy, analysis_depth, risk_management, timeliness, clarity, total_score))
+        
+        cursor.execute('SELECT * FROM signals WHERE id = ?', (signal_id,))
+        new_signal = cursor.fetchone()
+        
+        conn.commit()
+        conn.close()
+        
+        return new_signal
     
     try:
-        signal_dict = execute_db_with_retry(_operation)
+        new_signal = execute_db_with_retry(_operation)
+        signal_dict = dict(new_signal)
+        try:
+            signal_dict['symbols'] = json.loads(signal_dict['symbols']) if signal_dict['symbols'] else []
+        except:
+            signal_dict['symbols'] = []
+        
         return jsonify({
             'success': True,
             'message': '信号发布成功',
             'signal': signal_dict
         })
-    except Exception as e:
+    except sqlite3.OperationalError as e:
         return jsonify({
             'success': False,
-            'message': str(e)
-        }), 500
+            'message': '数据库繁忙，请稍后重试'
+        }), 503
 
 
 @app.route('/api/leaderboard/position-pnl')
@@ -982,43 +1445,30 @@ def leaderboard_position_pnl():
 
 @app.route('/api/strategies')
 def strategies():
-    db = get_db_session()
-    try:
-        strategies = db.query(Strategy).order_by(text('created_at DESC')).all()
-        
-        result = []
-        for strategy in strategies:
-            strategy_dict = model_to_dict(strategy)
-            strategy_dict['parameters'] = strategy.parameters if strategy.parameters else {}
-            result.append(strategy_dict)
-        
-        return jsonify({
-            'success': True,
-            'strategies': result
-        })
-    finally:
-        db.close()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM strategies ORDER BY created_at DESC')
+    rows = cursor.fetchall()
+    conn.close()
+    
+    return jsonify({
+        'success': True,
+        'strategies': rows_to_dict_list(rows)
+    })
 
 
 @app.route('/api/strategies/<int:strategy_id>')
 def strategy_detail(strategy_id):
-    db = get_db_session()
-    try:
-        strategy = db.query(Strategy).filter(Strategy.id == strategy_id).first()
-        if strategy:
-            strategy_dict = model_to_dict(strategy)
-            strategy_dict['parameters'] = strategy.parameters if strategy.parameters else {}
-            return jsonify({
-                'success': True,
-                'strategy': strategy_dict
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'message': '策略不存在'
-            }), 404
-    finally:
-        db.close()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM strategies WHERE id = ?', (strategy_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    return jsonify({
+        'success': True,
+        'strategy': row_to_dict(row)
+    })
 
 
 @app.route('/api/strategies', methods=['POST'])
@@ -1028,35 +1478,23 @@ def create_strategy():
     description = data.get('description', '')
     strategy_type = data.get('strategy_type', 'custom')
     code = data.get('code', '')
-    parameters = data.get('parameters', {})
+    parameters = json.dumps(data.get('parameters', {}))
     
-    db = get_db_session()
-    try:
-        new_strategy = Strategy(
-            name=name,
-            description=description,
-            strategy_type=strategy_type,
-            code=code,
-            parameters=parameters,
-            is_active=True
-        )
-        db.add(new_strategy)
-        db.commit()
-        db.refresh(new_strategy)
-        
-        return jsonify({
-            'success': True,
-            'strategy_id': new_strategy.id,
-            'message': '策略创建成功'
-        })
-    except Exception as e:
-        db.rollback()
-        return jsonify({
-            'success': False,
-            'message': str(e)
-        }), 500
-    finally:
-        db.close()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO strategies (name, description, strategy_type, code, parameters, is_active)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (name, description, strategy_type, code, parameters, 1))
+    conn.commit()
+    strategy_id = cursor.lastrowid
+    conn.close()
+    
+    return jsonify({
+        'success': True,
+        'strategy_id': strategy_id,
+        'message': '策略创建成功'
+    })
 
 
 @app.route('/api/strategies/backtest', methods=['POST'])
@@ -1091,59 +1529,73 @@ def strategy_templates():
 
 
 @app.route('/api/auth/login', methods=['POST'])
+@ip_restriction
+@rate_limit(LOGIN_RATE_LIMIT, LOGIN_RATE_WINDOW, 'login')
 def login():
     data = request.get_json()
     username = data.get('username', '')
     password = data.get('password', '')
+    ip = get_client_ip()
     
     password_hash = _hash_password(password)
     
     def _operation():
-        db = get_db_session()
-        try:
-            user = db.query(User).filter(
-                and_(
-                    (User.email == username) | (User.username == username),
-                    User.password_hash == password_hash
-                )
-            ).first()
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, email, username, display_name FROM users 
+            WHERE (email = ? OR username = ?) AND password_hash = ?
+        ''', (username, username, password_hash))
+        row = cursor.fetchone()
+        
+        if row:
+            token = _generate_token()
+            expires_at = (datetime.now() + timedelta(days=30)).isoformat()
             
-            if user:
-                token = _generate_token()
-                expires_at = datetime.now() + timedelta(days=30)
-                
-                auth_token = AuthToken(
-                    user_id=user.id,
-                    token=token,
-                    expires_at=expires_at
-                )
-                db.add(auth_token)
-                db.commit()
-                
-                user_username = user.username or user.email.split('@')[0]
-                user_display_name = user.display_name or user_username
-                
-                return ({
-                    'success': True,
-                    'token': token,
-                    'user': {
-                        'id': user.id,
-                        'username': user_username,
-                        'email': user.email,
-                        'display_name': user_display_name
-                    }
-                }, 200)
-            else:
-                return ({
-                    'success': False,
-                    'message': '用户名或密码错误'
-                }, 401)
-        finally:
-            db.close()
+            cursor.execute('''
+                INSERT INTO auth_tokens (user_id, token, expires_at)
+                VALUES (?, ?, ?)
+            ''', (row['id'], token, expires_at))
+            conn.commit()
+            
+            user_username = row['username'] or row['email'].split('@')[0]
+            user_display_name = row['display_name'] or user_username
+            
+            conn.close()
+            return ({
+                'success': True,
+                'token': token,
+                'user': {
+                    'id': row['id'],
+                    'username': user_username,
+                    'email': row['email'],
+                    'display_name': user_display_name
+                }
+            }, 200)
+        else:
+            conn.close()
+            return ({
+                'success': False,
+                'message': '用户名或密码错误'
+            }, 401)
     
     try:
         result, status = execute_db_with_retry(_operation)
+        
+        if status == 200:
+            reset_failed_attempts(ip)
+        else:
+            banned = record_failed_attempt(ip)
+            if banned:
+                result['message'] = f'登录失败次数过多，IP 已被暂时封禁 {BAN_DURATION} 秒'
+                status = 429
+        
         return jsonify(result), status
+    except sqlite3.OperationalError as e:
+        return jsonify({
+            'success': False,
+            'message': '数据库繁忙，请稍后重试'
+        }), 503
     except Exception as e:
         return jsonify({
             'success': False,
@@ -1167,25 +1619,26 @@ def register():
     password_hash = _hash_password(password)
     
     def _operation():
-        db = get_db_session()
+        conn = get_db()
+        cursor = conn.cursor()
+        
         try:
-            existing = db.query(User).filter(User.email == email).first()
-            if existing:
+            cursor.execute('SELECT id FROM users WHERE email = ?', (email,))
+            if cursor.fetchone():
+                conn.close()
                 return ('邮箱已被注册', 400)
             
-            new_user = User(
-                username=username,
-                email=email,
-                password_hash=password_hash
-            )
-            db.add(new_user)
-            db.commit()
+            cursor.execute('''
+                INSERT INTO users (username, email, password_hash)
+                VALUES (?, ?, ?)
+            ''', (username, email, password_hash))
+            conn.commit()
+            conn.close()
             return ('注册成功', 200)
         except Exception as e:
-            db.rollback()
+            conn.rollback()
+            conn.close()
             raise
-        finally:
-            db.close()
     
     try:
         message, status = execute_db_with_retry(_operation)
@@ -1193,6 +1646,11 @@ def register():
             'success': status == 200,
             'message': message
         }), status
+    except sqlite3.OperationalError as e:
+        return jsonify({
+            'success': False,
+            'message': '数据库繁忙，请稍后重试'
+        }), 503
     except Exception as e:
         return jsonify({
             'success': False,
@@ -1200,36 +1658,76 @@ def register():
         }), 500
 
 
+@app.route('/api/auth/me')
+@ip_restriction
+@rate_limit(ME_RATE_LIMIT, ME_RATE_WINDOW, 'auth_me')
+@require_auth
+def auth_me():
+    user_id = request.current_user_id
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, username, email, display_name, created_at 
+        FROM users WHERE id = ?
+    ''', (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        user_username = row['username'] or row['email'].split('@')[0]
+        user_display_name = row['display_name'] or user_username
+        
+        return jsonify({
+            'success': True,
+            'user': {
+                'id': row['id'],
+                'username': user_username,
+                'email': row['email'],
+                'display_name': user_display_name,
+                'created_at': row['created_at']
+            }
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'message': '用户不存在'
+        }), 404
+
+
 @app.route('/api/users/me')
 @require_auth
 def get_current_user():
     user_id = request.current_user_id
     
-    db = get_db_session()
-    try:
-        user = db.query(User).filter(User.id == user_id).first()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, username, email, display_name, created_at 
+        FROM users WHERE id = ?
+    ''', (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        user_username = row['username'] or row['email'].split('@')[0]
+        user_display_name = row['display_name'] or user_username
         
-        if user:
-            user_username = user.username or user.email.split('@')[0]
-            user_display_name = user.display_name or user_username
-            
-            return jsonify({
-                'success': True,
-                'user': {
-                    'id': user.id,
-                    'username': user_username,
-                    'email': user.email,
-                    'display_name': user_display_name,
-                    'created_at': user.created_at.isoformat() if user.created_at else None
-                }
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'message': '用户不存在'
-            }), 404
-    finally:
-        db.close()
+        return jsonify({
+            'success': True,
+            'user': {
+                'id': row['id'],
+                'username': user_username,
+                'email': row['email'],
+                'display_name': user_display_name,
+                'created_at': row['created_at']
+            }
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'message': '用户不存在'
+        }), 404
 
 
 @app.route('/api/users/me/stats')
@@ -1266,88 +1764,45 @@ def get_user_preferences():
 
 
 @app.route('/api/notifications')
-@require_auth
 def get_notifications():
-    user_id = request.current_user_id
-    limit = int(request.args.get('limit', 20))
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM notifications ORDER BY created_at DESC LIMIT 20')
+    rows = cursor.fetchall()
+    conn.close()
     
-    db = get_db_session()
-    try:
-        notifications = db.query(Notification).filter(
-            Notification.user_id == user_id
-        ).order_by(text('created_at DESC')).limit(limit).all()
-        
-        return jsonify({
-            'success': True,
-            'notifications': models_to_dict_list(notifications)
-        })
-    finally:
-        db.close()
+    return jsonify({
+        'success': True,
+        'notifications': rows_to_dict_list(rows)
+    })
 
 
 @app.route('/api/notifications/<int:notification_id>/read', methods=['PUT'])
-@require_auth
 def mark_notification_read(notification_id):
-    user_id = request.current_user_id
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('UPDATE notifications SET is_read = 1 WHERE id = ?', (notification_id,))
+    conn.commit()
+    conn.close()
     
-    db = get_db_session()
-    try:
-        notification = db.query(Notification).filter(
-            and_(
-                Notification.id == notification_id,
-                Notification.user_id == user_id
-            )
-        ).first()
-        
-        if notification:
-            notification.is_read = True
-            db.commit()
-            return jsonify({
-                'success': True,
-                'message': '通知已标记为已读'
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'message': '通知不存在'
-            }), 404
-    except Exception as e:
-        db.rollback()
-        return jsonify({
-            'success': False,
-            'message': str(e)
-        }), 500
-    finally:
-        db.close()
+    return jsonify({
+        'success': True,
+        'message': '通知已标记为已读'
+    })
 
 
 @app.route('/api/notifications/read-all', methods=['PUT'])
-@require_auth
 def mark_all_notifications_read():
-    user_id = request.current_user_id
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('UPDATE notifications SET is_read = 1 WHERE user_id = 1')
+    conn.commit()
+    conn.close()
     
-    db = get_db_session()
-    try:
-        db.query(Notification).filter(
-            and_(
-                Notification.user_id == user_id,
-                Notification.is_read == False
-            )
-        ).update({Notification.is_read: True})
-        db.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': '所有通知已标记为已读'
-        })
-    except Exception as e:
-        db.rollback()
-        return jsonify({
-            'success': False,
-            'message': str(e)
-        }), 500
-    finally:
-        db.close()
+    return jsonify({
+        'success': True,
+        'message': '所有通知已标记为已读'
+    })
 
 
 @app.route('/api/notifications/settings')

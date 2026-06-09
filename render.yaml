@@ -3,8 +3,11 @@ services:
     name: trading-agent-for-dscourse-backend
     runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: python main.py
+    buildCommand: |
+      cd server
+      pip install -r requirements.txt
+      python run_tests.py --unit
+    startCommand: cd server && python main.py
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9

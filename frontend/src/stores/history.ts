@@ -10,10 +10,8 @@ interface HistoryItem {
 }
 
 export const useHistoryStore = defineStore('history', () => {
-  const history = ref<HistoryItem[]>(() => {
-    const saved = localStorage.getItem('history')
-    return saved ? JSON.parse(saved) : []
-  })
+  const savedHistory = localStorage.getItem('history')
+  const history = ref<HistoryItem[]>(savedHistory ? JSON.parse(savedHistory) : [])
 
   function saveHistory() {
     localStorage.setItem('history', JSON.stringify(history.value.slice(0, 100)))

@@ -9,10 +9,8 @@ interface FavoriteSignal {
 }
 
 export const useFavoritesStore = defineStore('favorites', () => {
-  const favorites = ref<FavoriteSignal[]>(() => {
-    const saved = localStorage.getItem('favorites')
-    return saved ? JSON.parse(saved) : []
-  })
+  const savedFavorites = localStorage.getItem('favorites')
+  const favorites = ref<FavoriteSignal[]>(savedFavorites ? JSON.parse(savedFavorites) : [])
 
   function saveFavorites() {
     localStorage.setItem('favorites', JSON.stringify(favorites.value))

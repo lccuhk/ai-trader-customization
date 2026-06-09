@@ -26,8 +26,8 @@ export const useSignalStore = defineStore('signal', () => {
     error.value = null
     try {
       const response = await signalApi.getSignals(limit, message_type, market)
-      if (response.data.success && response.data.signals) {
-        signals.value = response.data.signals
+      if (response.data.success && response.data.data) {
+        signals.value = response.data.data
       }
     } catch (e: any) {
       error.value = e.response?.data?.message || '获取信号列表失败'
@@ -48,17 +48,17 @@ export const useSignalStore = defineStore('signal', () => {
         signalApi.getSignalQuality(id)
       ])
 
-      if (signalRes.data.success && signalRes.data.signal) {
-        currentSignal.value = signalRes.data.signal
+      if (signalRes.data.success && signalRes.data.data) {
+        currentSignal.value = signalRes.data.data
       }
-      if (repliesRes.data.success && repliesRes.data.replies) {
-        replies.value = repliesRes.data.replies
+      if (repliesRes.data.success && repliesRes.data.data) {
+        replies.value = repliesRes.data.data
       }
-      if (participantsRes.data.success && participantsRes.data.participants) {
-        participants.value = participantsRes.data.participants
+      if (participantsRes.data.success && participantsRes.data.data) {
+        participants.value = participantsRes.data.data
       }
-      if (qualityRes.data.success && qualityRes.data.quality) {
-        qualityScore.value = qualityRes.data.quality
+      if (qualityRes.data.success && qualityRes.data.data) {
+        qualityScore.value = qualityRes.data.data
       }
     } catch (e: any) {
       error.value = e.response?.data?.message || '获取信号详情失败'
@@ -73,8 +73,8 @@ export const useSignalStore = defineStore('signal', () => {
     error.value = null
     try {
       const response = await signalApi.getSignalReplies(signalId)
-      if (response.data.success && response.data.replies) {
-        replies.value = response.data.replies
+      if (response.data.success && response.data.data) {
+        replies.value = response.data.data
       }
     } catch (e: any) {
       error.value = e.response?.data?.message || '获取评论失败'
@@ -89,9 +89,9 @@ export const useSignalStore = defineStore('signal', () => {
     error.value = null
     try {
       const response = await signalApi.createSignal(data)
-      if (response.data.success && response.data.signal) {
-        signals.value.unshift(response.data.signal)
-        return { success: true, signal: response.data.signal }
+      if (response.data.success && response.data.data) {
+        signals.value.unshift(response.data.data)
+        return { success: true, signal: response.data.data }
       }
       return { success: false, message: response.data.message || '创建信号失败' }
     } catch (e: any) {
@@ -105,12 +105,12 @@ export const useSignalStore = defineStore('signal', () => {
   async function addReply(signalId: number, content: string, parentId?: number) {
     try {
       const response = await signalApi.addReply(signalId, { content, parent_id: parentId })
-      if (response.data.success && response.data.reply) {
-        replies.value.unshift(response.data.reply)
+      if (response.data.success && response.data.data) {
+        replies.value.unshift(response.data.data)
         if (currentSignal.value) {
           currentSignal.value.reply_count++
         }
-        return { success: true, reply: response.data.reply }
+        return { success: true, reply: response.data.data }
       }
       return { success: false, message: response.data.message || '发布评论失败' }
     } catch (e: any) {
@@ -147,15 +147,16 @@ export const useSignalStore = defineStore('signal', () => {
       const response = await signalApi.likeSignal(signalId)
       if (response.data.success) {
         const signal = signals.value.find(s => s.id === signalId)
+        const likeData = response.data.data as any
         if (signal) {
           signal.is_liked = !signal.is_liked
-          signal.likes = response.data.likes ?? signal.likes + (signal.is_liked ? 1 : -1)
+          signal.likes = likeData?.likes ?? signal.likes + (signal.is_liked ? 1 : -1)
         }
         if (currentSignal.value?.id === signalId) {
           currentSignal.value.is_liked = !currentSignal.value.is_liked
-          currentSignal.value.likes = response.data.likes ?? currentSignal.value.likes + (currentSignal.value.is_liked ? 1 : -1)
+          currentSignal.value.likes = likeData?.likes ?? currentSignal.value.likes + (currentSignal.value.is_liked ? 1 : -1)
         }
-        return { success: true, likes: response.data.likes }
+        return { success: true, likes: likeData?.likes }
       }
       return { success: false, message: response.data.message || '点赞失败' }
     } catch (e: any) {
@@ -168,11 +169,12 @@ export const useSignalStore = defineStore('signal', () => {
       const response = await signalApi.likeReply(signalId, replyId)
       if (response.data.success) {
         const reply = replies.value.find(r => r.id === replyId)
+        const likeData = response.data.data as any
         if (reply) {
           reply.is_liked = !reply.is_liked
-          reply.likes = response.data.likes ?? reply.likes + (reply.is_liked ? 1 : -1)
+          reply.likes = likeData?.likes ?? reply.likes + (reply.is_liked ? 1 : -1)
         }
-        return { success: true, likes: response.data.likes }
+        return { success: true, likes: likeData?.likes }
       }
       return { success: false, message: response.data.message || '点赞失败' }
     } catch (e: any) {
@@ -185,8 +187,8 @@ export const useSignalStore = defineStore('signal', () => {
     error.value = null
     try {
       const response = await marketApi.getNews(limit)
-      if (response.data.success && response.data.news) {
-        marketNews.value = response.data.news
+      if (response.data.success && response.data.data) {
+        marketNews.value = response.data.data
       }
       return marketNews.value
     } catch (e: any) {
@@ -202,8 +204,8 @@ export const useSignalStore = defineStore('signal', () => {
     error.value = null
     try {
       const response = await marketApi.getEvents(limit)
-      if (response.data.success && response.data.events) {
-        marketEvents.value = response.data.events
+      if (response.data.success && response.data.data) {
+        marketEvents.value = response.data.data
       }
       return marketEvents.value
     } catch (e: any) {
@@ -219,8 +221,8 @@ export const useSignalStore = defineStore('signal', () => {
     error.value = null
     try {
       const response = await marketApi.getIndicators(limit)
-      if (response.data.success && response.data.indicators) {
-        economicIndicators.value = response.data.indicators
+      if (response.data.success && response.data.data) {
+        economicIndicators.value = response.data.data
       }
       return economicIndicators.value
     } catch (e: any) {

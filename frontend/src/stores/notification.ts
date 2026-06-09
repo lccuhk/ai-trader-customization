@@ -17,8 +17,8 @@ export const useNotificationStore = defineStore('notification', () => {
     error.value = null
     try {
       const response = await notificationApi.getNotifications(limit)
-      if (response.data.success && response.data.notifications) {
-        notifications.value = response.data.notifications
+      if (response.data.success && response.data.data) {
+        notifications.value = response.data.data
       }
     } catch (e: any) {
       error.value = e.response?.data?.message || '获取通知失败'

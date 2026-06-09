@@ -355,18 +355,16 @@ export const useWebSocketStore = defineStore('websocket', () => {
 
   function handleUserStatusChange(data: WSUserStatusData): void {
     if (data.status === 'online') {
-      if (!onlineUsers.value.find(u => u.user_id === data.user_id)) {
+      if (!onlineUsers.value.find(u => u.id === data.user_id)) {
         onlineUsers.value.push({
-          user_id: data.user_id,
-          username: data.user.username,
-          display_name: data.user.display_name,
-          connected_at: data.timestamp,
-          last_active: data.timestamp
+          id: data.user_id,
+          username: 'user_' + data.user_id,
+          display_name: 'User ' + data.user_id
         })
         onlineCount.value = onlineUsers.value.length
       }
     } else {
-      const index = onlineUsers.value.findIndex(u => u.user_id === data.user_id)
+      const index = onlineUsers.value.findIndex(u => u.id === data.user_id)
       if (index > -1) {
         onlineUsers.value.splice(index, 1)
         onlineCount.value = onlineUsers.value.length
@@ -415,7 +413,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
     }
     try {
       const tradingStore = useTradingStore()
-      tradingStore.addTrade(trade)
+      tradingStore.trades.unshift(trade)
     } catch (e) {
       console.error('[WS] Error adding trade to trading store:', e)
     }
@@ -475,7 +473,10 @@ export const useWebSocketStore = defineStore('websocket', () => {
     }
     try {
       const aiStore = useAIStore()
-      aiStore.addAlert(alert)
+      const existing = aiStore.riskAlerts.find(a => a.id === alert.id)
+      if (!existing) {
+        aiStore.riskAlerts.unshift(alert)
+      }
     } catch (e) {
       console.error('[WS] Error adding alert to AI store:', e)
     }
@@ -488,7 +489,10 @@ export const useWebSocketStore = defineStore('websocket', () => {
     }
     try {
       const aiStore = useAIStore()
-      aiStore.addSignal(signal)
+      const existing = aiStore.aiSignals.find(a => a.id === signal.id)
+      if (!existing) {
+        aiStore.aiSignals.unshift(signal)
+      }
     } catch (e) {
       console.error('[WS] Error adding AI signal to AI store:', e)
     }
