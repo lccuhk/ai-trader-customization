@@ -2,8 +2,8 @@
   <div class="app">
     <Navbar v-if="showNavbar" />
     <div class="app-body" v-if="showNavbar">
-      <Sidebar />
-      <main class="main-content">
+      <Sidebar v-if="userStore.isLoggedIn" />
+      <main class="main-content" :class="{ 'with-sidebar': userStore.isLoggedIn }">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
             <component :is="Component" />
@@ -118,8 +118,12 @@ const showNavbar = computed(() => {
 .main-content {
   flex: 1;
   background: var(--bg-secondary);
-  margin-left: 240px;
+  margin-left: 0;
   min-height: calc(100vh - 56px);
+}
+
+.main-content.with-sidebar {
+  margin-left: 240px;
 }
 
 .main-content.full-width {
@@ -128,13 +132,13 @@ const showNavbar = computed(() => {
 }
 
 @media (max-width: 1024px) {
-  .main-content {
+  .main-content.with-sidebar {
     margin-left: 60px;
   }
 }
 
 @media (max-width: 768px) {
-  .main-content {
+  .main-content.with-sidebar {
     margin-left: 0;
   }
 }

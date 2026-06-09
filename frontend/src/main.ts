@@ -30,6 +30,9 @@ async function initializeApp() {
       websocketStore.connect().catch(e => {
         console.warn('[WS] Auto-connect failed:', e.message)
       })
+    } else {
+      // Token 无效，重定向到登录页
+      router.push({ name: 'Login' })
     }
   }
 }
