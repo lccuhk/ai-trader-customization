@@ -44,7 +44,7 @@
         </div>
         <div class="stat-card">
           <div class="stat-label">最大回撤</div>
-          <div class="stat-value" class="negative">-{{ (analytics?.performance?.max_drawdown || 0).toFixed(2) }}%</div>
+          <div class="stat-value negative">-{{ (analytics?.performance?.max_drawdown || 0).toFixed(2) }}%</div>
         </div>
       </div>
 
