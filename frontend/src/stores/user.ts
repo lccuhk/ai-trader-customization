@@ -49,7 +49,8 @@ export const useUserStore = defineStore('user', () => {
       }
       return { success: false, message: response.data.message || '登录失败' }
     } catch (e: any) {
-      error.value = e.response?.data?.message || '登录失败'
+      const resp = e.response?.data
+      error.value = resp?.message || resp?.detail || '登录失败'
       return { success: false, message: error.value }
     } finally {
       isLoading.value = false
@@ -75,7 +76,8 @@ export const useUserStore = defineStore('user', () => {
       }
       return { success: false, message: response.data.message || '注册失败' }
     } catch (e: any) {
-      error.value = e.response?.data?.message || '注册失败'
+      const resp = e.response?.data
+      error.value = resp?.message || resp?.detail || '注册失败'
       return { success: false, message: error.value }
     } finally {
       isLoading.value = false

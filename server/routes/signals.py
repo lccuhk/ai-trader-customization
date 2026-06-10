@@ -105,7 +105,7 @@ def create_signal_route():
         content=data.get('content', '').strip(),
         message_type=data.get('type', data.get('message_type', 'operation')),
         market=data.get('market', 'us-stock'),
-        symbol=data.get('symbol', ''),
+        symbols=data.get('symbols', []),
         direction=data.get('direction', ''),
         entry_price=data.get('entry_price'),
         stop_loss=data.get('stop_loss'),

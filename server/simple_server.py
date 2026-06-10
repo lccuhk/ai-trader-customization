@@ -62,16 +62,97 @@ def _generate_token() -> str:
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    
+
+    # 创建数据库表（首次运行时）
+    cursor.executescript('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS user_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            token TEXT UNIQUE NOT NULL,
+            expires_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS user_stats (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER UNIQUE,
+            total_trades INTEGER DEFAULT 0,
+            winning_trades INTEGER DEFAULT 0,
+            total_pnl REAL DEFAULT 0.0,
+            win_rate REAL DEFAULT 0.0,
+            sharpe_ratio REAL DEFAULT 0.0
+        );
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            title TEXT,
+            message TEXT,
+            notification_type TEXT,
+            priority TEXT DEFAULT 'normal',
+            is_read INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS strategies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            description TEXT,
+            strategy_type TEXT,
+            code TEXT,
+            parameters TEXT DEFAULT '{}',
+            is_active INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS market_news (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            content TEXT,
+            source TEXT,
+            category TEXT,
+            symbol TEXT,
+            impact_score INTEGER DEFAULT 0,
+            sentiment TEXT DEFAULT 'neutral',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS market_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            description TEXT,
+            event_type TEXT,
+            event_date TEXT,
+            importance TEXT DEFAULT 'low',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS ai_conversations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            conversation_id TEXT,
+            agent_type TEXT,
+            title TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    ''')
+
     try:
-        cursor.execute('SELECT COUNT(*) FROM users WHERE email = ?', ('demo@example.com',))
+        # 修复旧数据库中的演示账户（如果有）
+        cursor.execute('SELECT id FROM users WHERE email = ?', ('demo@example.com',))
+        old_user = cursor.fetchone()
+        if old_user:
+            cursor.execute('UPDATE users SET email = ?, password_hash = ? WHERE email = ?',
+                         ('demo', _hash_password('demo123456'), 'demo@example.com'))
+
+        cursor.execute('SELECT COUNT(*) FROM users WHERE email = ?', ('demo',))
         if cursor.fetchone()[0] == 0:
             cursor.execute('''
                 INSERT INTO users (email, password_hash)
                 VALUES (?, ?)
-            ''', ('demo@example.com', _hash_password('demo123')))
-            
-            cursor.execute('SELECT id FROM users WHERE email = ?', ('demo@example.com',))
+            ''', ('demo', _hash_password('demo123456')))
+
+            cursor.execute('SELECT id FROM users WHERE email = ?', ('demo',))
             user_id = cursor.fetchone()[0]
             
             try:
@@ -591,8 +672,8 @@ async def login(request: LoginRequest):
     
     cursor.execute('''
         SELECT id, email FROM users 
-        WHERE email = ? AND password_hash = ?
-    ''', (request.username, password_hash))
+        WHERE (email = ? OR email = ?) AND password_hash = ?
+    ''', (request.username, request.username, password_hash))
     
     row = cursor.fetchone()
     
@@ -681,7 +762,7 @@ async def get_current_user(request: Request):
             WHERE s.token = ?
         ''', (token,))
     except:
-        cursor.execute('SELECT * FROM users WHERE email = ?', ('demo@example.com',))
+        cursor.execute('SELECT * FROM users WHERE email = ?', ('demo',))
     
     row = cursor.fetchone()
     conn.close()
@@ -871,6 +952,455 @@ async def get_strategy_templates():
             {'id': 3, 'name': '波动率策略模板', 'category': '波动率', 'description': '基于波动率的策略'},
         ]
     }
+
+
+# ======================== 信号广场 (Trading Signals) ========================
+
+import random as _random
+
+MOCK_SIGNALS = [
+    {
+        'id': 1,
+        'user_id': 1,
+        'agent_name': 'Market Analyst',
+        'title': 'NVDA 突破关键阻力位',
+        'content': '英伟达股价突破了 $500 关键阻力位，成交量放大，RSI 处于强势区域，建议关注后续走势。',
+        'message_type': 'analysis',
+        'market': 'us-stock',
+        'symbols': ['NVDA'],
+        'direction': 'long',
+        'entry_price': 505.50,
+        'current_price': 512.30,
+        'take_profit': 550.00,
+        'stop_loss': 480.00,
+        'pnl': 6.80,
+        'pnl_percent': 1.35,
+        'status': 'active',
+        'quality_score': 85,
+        'reply_count': 12,
+        'participant_count': 8,
+        'likes': 45,
+        'views': 1234,
+        'is_following': False,
+        'is_liked': False,
+        'is_simulation': True,
+        'created_at': '2026-06-07T10:30:00'
+    },
+    {
+        'id': 2,
+        'user_id': 1,
+        'agent_name': 'Quant Trader',
+        'title': 'AAPL 短线做多机会',
+        'content': '苹果股价回调至 200 日均线附近，MACD 出现金叉信号，短线反弹概率较大。',
+        'message_type': 'operation',
+        'market': 'us-stock',
+        'symbols': ['AAPL'],
+        'direction': 'long',
+        'entry_price': 185.00,
+        'current_price': 188.50,
+        'take_profit': 195.00,
+        'stop_loss': 180.00,
+        'pnl': 3.50,
+        'pnl_percent': 1.89,
+        'status': 'active',
+        'quality_score': 72,
+        'reply_count': 5,
+        'participant_count': 3,
+        'likes': 18,
+        'views': 567,
+        'is_following': False,
+        'is_liked': False,
+        'is_simulation': True,
+        'created_at': '2026-06-07T09:15:00'
+    },
+    {
+        'id': 3,
+        'user_id': 1,
+        'agent_name': 'Risk Manager',
+        'title': '市场风险预警',
+        'content': 'VIX 指数上升至 22，市场波动率加大，建议降低杠杆率，控制仓位风险。',
+        'message_type': 'alert',
+        'market': 'us-stock',
+        'symbols': ['SPY', 'QQQ'],
+        'direction': None,
+        'entry_price': None,
+        'current_price': None,
+        'take_profit': None,
+        'stop_loss': None,
+        'pnl': None,
+        'pnl_percent': None,
+        'status': 'active',
+        'quality_score': 90,
+        'reply_count': 20,
+        'participant_count': 15,
+        'likes': 67,
+        'views': 2345,
+        'is_following': False,
+        'is_liked': False,
+        'is_simulation': True,
+        'created_at': '2026-06-07T08:00:00'
+    },
+    {
+        'id': 4,
+        'user_id': 1,
+        'agent_name': 'Crypto Analyst',
+        'title': 'BTC 测试 $70000 关口',
+        'content': '比特币再次测试 $70000 整数关口，链上数据显示巨鲸地址持续增持，突破概率较大。',
+        'message_type': 'analysis',
+        'market': 'crypto',
+        'symbols': ['BTC'],
+        'direction': 'long',
+        'entry_price': 68500,
+        'current_price': 69800,
+        'take_profit': 75000,
+        'stop_loss': 65000,
+        'pnl': 1300,
+        'pnl_percent': 1.90,
+        'status': 'active',
+        'quality_score': 78,
+        'reply_count': 8,
+        'participant_count': 6,
+        'likes': 34,
+        'views': 1890,
+        'is_following': False,
+        'is_liked': False,
+        'is_simulation': True,
+        'created_at': '2026-06-06T22:00:00'
+    },
+    {
+        'id': 5,
+        'user_id': 1,
+        'agent_name': 'Fund Manager',
+        'title': 'TSLA 财报前瞻',
+        'content': '特斯拉即将发布 Q2 财报，市场预期营收增长 15%，重点关注毛利率和交付量数据。',
+        'message_type': 'discussion',
+        'market': 'us-stock',
+        'symbols': ['TSLA'],
+        'direction': None,
+        'entry_price': None,
+        'current_price': 245.00,
+        'take_profit': None,
+        'stop_loss': None,
+        'pnl': None,
+        'pnl_percent': None,
+        'status': 'active',
+        'quality_score': 82,
+        'reply_count': 15,
+        'participant_count': 10,
+        'likes': 56,
+        'views': 3456,
+        'is_following': False,
+        'is_liked': False,
+        'is_simulation': True,
+        'created_at': '2026-06-06T20:30:00'
+    }
+]
+
+
+@app.get('/api/signals/feed')
+async def signals_feed(limit: int = 20, message_type: str = '', market: str = ''):
+    signals = MOCK_SIGNALS
+    if message_type:
+        signals = [s for s in signals if s['message_type'] == message_type]
+    if market:
+        signals = [s for s in signals if s['market'] == market]
+    return {'success': True, 'signals': signals[:limit]}
+
+
+@app.get('/api/signals/{signal_id}')
+async def signal_detail(signal_id: int):
+    for s in MOCK_SIGNALS:
+        if s['id'] == signal_id:
+            return {'success': True, 'signal': s}
+    raise HTTPException(status_code=404, detail='信号不存在')
+
+
+@app.get('/api/signals/{signal_id}/replies')
+async def signal_replies(signal_id: int):
+    mock_replies = [
+        {'id': 1, 'signal_id': signal_id, 'user_id': 2, 'user_name': 'TraderWang', 'content': '分析得不错，我也看好这个方向', 'likes': 5, 'is_liked': False, 'created_at': '2026-06-07T11:00:00'},
+        {'id': 2, 'signal_id': signal_id, 'user_id': 3, 'user_name': 'InvestorLi', 'content': '止损位设置得合理，关注后续走势', 'likes': 3, 'is_liked': False, 'created_at': '2026-06-07T11:30:00'},
+    ]
+    return {'success': True, 'replies': mock_replies}
+
+
+@app.post('/api/signals/{signal_id}/replies')
+async def add_signal_reply(signal_id: int, request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    content = body.get('content', '')
+    return {
+        'success': True,
+        'reply': {'id': _random.randint(100, 999), 'signal_id': signal_id, 'user_id': 1, 'user_name': '演示用户', 'content': content, 'likes': 0, 'is_liked': False, 'created_at': datetime.now().isoformat()}
+    }
+
+
+@app.get('/api/signals/{signal_id}/participants')
+async def signal_participants(signal_id: int):
+    mock_participants = [
+        {'id': 1, 'signal_id': signal_id, 'user_id': 1, 'user_name': '演示用户', 'role': 'author', 'joined_at': '2026-06-07T10:30:00'},
+        {'id': 2, 'signal_id': signal_id, 'user_id': 2, 'user_name': 'TraderWang', 'role': 'follower', 'joined_at': '2026-06-07T11:00:00'},
+    ]
+    return {'success': True, 'participants': mock_participants}
+
+
+@app.get('/api/signals/{signal_id}/quality-detail')
+async def signal_quality(signal_id: int):
+    return {
+        'success': True,
+        'quality': {
+            'accuracy_score': _random.uniform(0.6, 0.95),
+            'analysis_depth': _random.uniform(0.6, 0.95),
+            'risk_management': _random.uniform(0.6, 0.95),
+            'timeliness': _random.uniform(0.6, 0.95),
+            'clarity': _random.uniform(0.6, 0.95),
+            'total_score': _random.uniform(0.6, 0.95)
+        }
+    }
+
+
+@app.get('/api/signals/{signal_id}/follow')
+async def signal_follow_status(signal_id: int):
+    return {'success': True, 'is_following': False}
+
+
+@app.post('/api/signals/{signal_id}/follow')
+async def toggle_signal_follow(signal_id: int):
+    return {'success': True, 'is_following': True}
+
+
+@app.post('/api/signals/{signal_id}/like')
+async def like_signal(signal_id: int):
+    return {'success': True, 'likes': _random.randint(10, 100)}
+
+
+@app.post('/api/signals')
+async def create_signal_route(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    new_id = len(MOCK_SIGNALS) + 1
+    new_signal = {
+        'id': new_id,
+        'user_id': 1,
+        'agent_name': '演示用户',
+        'title': body.get('title', '新信号'),
+        'content': body.get('content', ''),
+        'message_type': body.get('message_type', 'operation'),
+        'market': body.get('market', 'us-stock'),
+        'symbols': body.get('symbols', []),
+        'direction': body.get('direction', ''),
+        'entry_price': body.get('entry_price'),
+        'current_price': body.get('entry_price'),
+        'take_profit': body.get('take_profit'),
+        'stop_loss': body.get('stop_loss'),
+        'pnl': 0,
+        'pnl_percent': 0,
+        'status': 'active',
+        'quality_score': 0,
+        'reply_count': 0,
+        'participant_count': 1,
+        'likes': 0,
+        'views': 0,
+        'is_following': False,
+        'is_liked': False,
+        'is_simulation': True,
+        'created_at': datetime.now().isoformat()
+    }
+    return {'success': True, 'signal': new_signal}
+
+
+@app.post('/api/signals/{signal_id}/replies/{reply_id}/like')
+async def like_signal_reply(signal_id: int, reply_id: int):
+    return {'success': True}
+
+
+# ======================== 交易与资产看板 (Trading & Portfolio) ========================
+
+MOCK_PORTFOLIO = {
+    'portfolio': {
+        'id': 1,
+        'user_id': 1,
+        'total_balance': 125000.00,
+        'available_balance': 45000.00,
+        'used_balance': 80000.00,
+        'unrealized_pnl': 3200.50,
+        'realized_pnl': 15430.00,
+        'total_value': 128200.50,
+        'total_pnl': 18630.50,
+        'daily_pnl': 890.00,
+        'weekly_pnl': 3450.00,
+        'monthly_pnl': 8900.00,
+        'win_rate': 65.4,
+        'profit_factor': 1.85,
+        'sharpe_ratio': 1.72,
+        'max_drawdown': 8.2,
+        'total_trades': 156,
+        'is_simulation': True,
+        'created_at': '2026-01-01T00:00:00',
+        'last_updated': '2026-06-08T12:00:00'
+    },
+    'positions': [
+        {'id': 1, 'user_id': 1, 'symbol': 'NVDA', 'quantity': 50, 'avg_price': 480.00, 'current_price': 512.30, 'unrealized_pnl': 1615.00, 'unrealized_pnl_percent': 6.73, 'is_simulation': True, 'created_at': '2026-05-15T10:00:00', 'updated_at': '2026-06-08T12:00:00'},
+        {'id': 2, 'user_id': 1, 'symbol': 'AAPL', 'quantity': 100, 'avg_price': 182.00, 'current_price': 188.50, 'unrealized_pnl': 650.00, 'unrealized_pnl_percent': 3.57, 'is_simulation': True, 'created_at': '2026-05-20T14:30:00', 'updated_at': '2026-06-08T12:00:00'},
+        {'id': 3, 'user_id': 1, 'symbol': 'BTC', 'quantity': 0.5, 'avg_price': 65000.00, 'current_price': 69800.00, 'unrealized_pnl': 2400.00, 'unrealized_pnl_percent': 7.38, 'is_simulation': True, 'created_at': '2026-04-10T09:00:00', 'updated_at': '2026-06-08T12:00:00'},
+        {'id': 4, 'user_id': 1, 'symbol': 'TSLA', 'quantity': 30, 'avg_price': 250.00, 'current_price': 245.00, 'unrealized_pnl': -150.00, 'unrealized_pnl_percent': -2.00, 'is_simulation': True, 'created_at': '2026-05-25T11:00:00', 'updated_at': '2026-06-08T12:00:00'},
+        {'id': 5, 'user_id': 1, 'symbol': 'ETH', 'quantity': 3, 'avg_price': 3200.00, 'current_price': 3510.00, 'unrealized_pnl': 930.00, 'unrealized_pnl_percent': 9.69, 'is_simulation': True, 'created_at': '2026-05-18T16:00:00', 'updated_at': '2026-06-08T12:00:00'},
+    ],
+    'recent_trades': [
+        {'id': 101, 'user_id': 1, 'symbol': 'NVDA', 'side': 'buy', 'quantity': 10, 'price': 505.00, 'pnl': None, 'pnl_percent': None, 'is_simulation': True, 'created_at': '2026-06-07T14:30:00'},
+        {'id': 100, 'user_id': 1, 'symbol': 'AAPL', 'side': 'sell', 'quantity': 20, 'price': 189.00, 'pnl': 140.00, 'pnl_percent': 3.85, 'is_simulation': True, 'created_at': '2026-06-07T10:00:00'},
+        {'id': 99, 'user_id': 1, 'symbol': 'BTC', 'side': 'buy', 'quantity': 0.1, 'price': 69200.00, 'pnl': None, 'pnl_percent': None, 'is_simulation': True, 'created_at': '2026-06-06T22:00:00'},
+        {'id': 98, 'user_id': 1, 'symbol': 'TSLA', 'side': 'buy', 'quantity': 30, 'price': 248.00, 'pnl': None, 'pnl_percent': None, 'is_simulation': True, 'created_at': '2026-06-06T15:00:00'},
+        {'id': 97, 'user_id': 1, 'symbol': 'ETH', 'side': 'sell', 'quantity': 1, 'price': 3480.00, 'pnl': 280.00, 'pnl_percent': 8.75, 'is_simulation': True, 'created_at': '2026-06-06T09:30:00'},
+    ]
+}
+
+MOCK_ORDERS = [
+    {'id': 201, 'user_id': 1, 'symbol': 'NVDA', 'side': 'buy', 'type': 'market', 'quantity': 10, 'price': None, 'filled_price': 505.00, 'filled_quantity': 10, 'status': 'filled', 'is_simulation': True, 'created_at': '2026-06-07T14:30:00', 'updated_at': '2026-06-07T14:30:05'},
+    {'id': 200, 'user_id': 1, 'symbol': 'BTC', 'side': 'buy', 'type': 'limit', 'quantity': 0.1, 'price': 69000.00, 'filled_price': None, 'filled_quantity': 0, 'status': 'pending', 'is_simulation': True, 'created_at': '2026-06-08T08:00:00', 'updated_at': '2026-06-08T08:00:00'},
+    {'id': 199, 'user_id': 1, 'symbol': 'ETH', 'side': 'sell', 'type': 'market', 'quantity': 1, 'price': None, 'filled_price': 3480.00, 'filled_quantity': 1, 'status': 'filled', 'is_simulation': True, 'created_at': '2026-06-06T09:30:00', 'updated_at': '2026-06-06T09:30:02'},
+    {'id': 198, 'user_id': 1, 'symbol': 'AAPL', 'side': 'sell', 'type': 'limit', 'quantity': 20, 'price': 190.00, 'filled_price': 189.00, 'filled_quantity': 20, 'status': 'filled', 'is_simulation': True, 'created_at': '2026-06-05T10:00:00', 'updated_at': '2026-06-05T14:30:00'},
+    {'id': 197, 'user_id': 1, 'symbol': 'TSLA', 'side': 'buy', 'type': 'stop', 'quantity': 30, 'price': 245.00, 'filled_price': None, 'filled_quantity': 0, 'status': 'pending', 'is_simulation': True, 'created_at': '2026-06-05T09:00:00', 'updated_at': '2026-06-05T09:00:00'},
+]
+
+MOCK_MARKET_PRICES = {
+    'BTC': 69800.00,
+    'ETH': 3510.00,
+    'SOL': 145.20,
+    'BNB': 580.00,
+    'XRP': 0.52,
+    'AAPL': 188.50,
+    'GOOGL': 175.30,
+    'MSFT': 420.10,
+    'AMZN': 185.80,
+    'TSLA': 245.00,
+    'NVDA': 512.30,
+    'SPY': 540.20,
+    'QQQ': 468.50,
+}
+
+
+@app.get('/api/trading/portfolio')
+async def get_portfolio(is_simulation: bool = True):
+    return {'success': True, 'data': MOCK_PORTFOLIO}
+
+
+@app.get('/api/trading/positions')
+async def get_positions(is_simulation: bool = True):
+    return {'success': True, 'data': MOCK_PORTFOLIO['positions']}
+
+
+@app.get('/api/trading/trades')
+async def get_trades(is_simulation: bool = True, page: int = 1, per_page: int = 20):
+    trades = MOCK_PORTFOLIO['recent_trades']
+    return {
+        'success': True,
+        'data': {
+            'items': trades,
+            'total': len(trades),
+            'page': page,
+            'per_page': per_page
+        }
+    }
+
+
+@app.get('/api/trading/orders')
+async def get_orders(status: str = '', symbol: str = '', is_simulation: bool = True):
+    orders = MOCK_ORDERS
+    if status:
+        orders = [o for o in orders if o['status'] == status]
+    if symbol:
+        orders = [o for o in orders if o['symbol'] == symbol]
+    return {
+        'success': True,
+        'data': {
+            'items': orders,
+            'total': len(orders),
+            'page': 1,
+            'per_page': 20
+        }
+    }
+
+
+@app.get('/api/trading/orders/{order_id}')
+async def get_order_detail(order_id: int):
+    for o in MOCK_ORDERS:
+        if o['id'] == order_id:
+            return {'success': True, 'data': o}
+    raise HTTPException(status_code=404, detail='订单不存在')
+
+
+@app.post('/api/trading/orders')
+async def create_order(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    order_id = max(o['id'] for o in MOCK_ORDERS) + 1
+    new_order = {
+        'id': order_id,
+        'user_id': 1,
+        'symbol': body.get('symbol', 'BTC'),
+        'side': body.get('side', 'buy'),
+        'type': body.get('type', 'market'),
+        'quantity': body.get('quantity', 0),
+        'price': body.get('price'),
+        'filled_price': body.get('price') if body.get('type') == 'market' else None,
+        'filled_quantity': body.get('quantity') if body.get('type') == 'market' else 0,
+        'status': 'filled' if body.get('type') == 'market' else 'pending',
+        'is_simulation': body.get('is_simulation', True),
+        'created_at': datetime.now().isoformat(),
+        'updated_at': datetime.now().isoformat()
+    }
+    MOCK_ORDERS.insert(0, new_order)
+    return {'success': True, 'data': new_order}
+
+
+@app.post('/api/trading/orders/{order_id}/cancel')
+async def cancel_order(order_id: int):
+    for o in MOCK_ORDERS:
+        if o['id'] == order_id:
+            o['status'] = 'cancelled'
+            return {'success': True, 'data': o}
+    return {'success': True}
+
+
+@app.get('/api/trading/exchange-accounts')
+async def get_exchange_accounts():
+    return {
+        'success': True,
+        'data': [
+            {'id': 1, 'user_id': 1, 'exchange': 'binance', 'name': '币安模拟账户', 'is_sandbox': True, 'is_active': True, 'created_at': '2026-01-01T00:00:00'},
+            {'id': 2, 'user_id': 1, 'exchange': 'alpaca', 'name': 'Alpaca美股', 'is_sandbox': True, 'is_active': True, 'created_at': '2026-01-15T00:00:00'},
+        ]
+    }
+
+
+@app.post('/api/trading/exchange-accounts')
+async def add_exchange_account(request: Request):
+    return {'success': True, 'data': {'id': 3, 'user_id': 1, 'exchange': 'binance', 'name': '新账户', 'is_sandbox': True, 'is_active': True, 'created_at': datetime.now().isoformat()}}
+
+
+@app.delete('/api/trading/exchange-accounts/{account_id}')
+async def delete_exchange_account(account_id: int):
+    return {'success': True, 'message': '账户已删除'}
+
+
+@app.get('/api/trading/market/price/{symbol}')
+async def get_market_price(symbol: str):
+    price = MOCK_MARKET_PRICES.get(symbol.upper())
+    if price:
+        return {'success': True, 'data': {'symbol': symbol.upper(), 'price': price}}
+    return {'success': True, 'data': {'symbol': symbol.upper(), 'price': _random.uniform(10, 1000)}}
+
+
+@app.get('/api/trading/market/prices')
+async def get_all_market_prices():
+    return {'success': True, 'data': MOCK_MARKET_PRICES}
 
 
 if __name__ == '__main__':

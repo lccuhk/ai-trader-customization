@@ -1,66 +1,66 @@
 <template>
   <div class="strategies">
     <div class="page-header">
-      <h1 class="page-title">> STRATEGY_MANAGER.EXE</h1>
+      <h1 class="page-title">&gt; {{ t('strategy.title').toUpperCase() }}.EXE</h1>
       <div class="header-actions">
         <button class="btn-primary" @click="showCreateModal = true">
-          [ + NEW_STRATEGY ]
+          [ + {{ t('strategy.newStrategy').toUpperCase() }} ]
         </button>
       </div>
     </div>
 
     <div class="filters">
       <div class="filter-group">
-        <span class="filter-label">TYPE:</span>
-        <button class="filter-btn" :class="{ active: activeType === 'all' }" @click="activeType = 'all'">ALL</button>
-        <button class="filter-btn" :class="{ active: activeType === 'trend' }" @click="activeType = 'trend'">TREND</button>
-        <button class="filter-btn" :class="{ active: activeType === 'mean_reversion' }" @click="activeType = 'mean_reversion'">MEAN_REVERSION</button>
-        <button class="filter-btn" :class="{ active: activeType === 'arbitrage' }" @click="activeType = 'arbitrage'">ARBITRAGE</button>
-        <button class="filter-btn" :class="{ active: activeType === 'momentum' }" @click="activeType = 'momentum'">MOMENTUM</button>
+        <span class="filter-label">{{ t('strategy.filterType') }}:</span>
+        <button class="filter-btn" :class="{ active: activeType === 'all' }" @click="activeType = 'all'">{{ t('common.all') }}</button>
+        <button class="filter-btn" :class="{ active: activeType === 'trend' }" @click="activeType = 'trend'">{{ t('strategy.trend') }}</button>
+        <button class="filter-btn" :class="{ active: activeType === 'mean_reversion' }" @click="activeType = 'mean_reversion'">{{ t('strategy.meanReversion') }}</button>
+        <button class="filter-btn" :class="{ active: activeType === 'arbitrage' }" @click="activeType = 'arbitrage'">{{ t('strategy.arbitrage') }}</button>
+        <button class="filter-btn" :class="{ active: activeType === 'momentum' }" @click="activeType = 'momentum'">{{ t('strategy.momentum') }}</button>
       </div>
       <div class="filter-group">
-        <span class="filter-label">STATUS:</span>
-        <button class="filter-btn" :class="{ active: activeStatus === 'all' }" @click="activeStatus = 'all'">ALL</button>
-        <button class="filter-btn" :class="{ active: activeStatus === 'active' }" @click="activeStatus = 'active'">ACTIVE</button>
-        <button class="filter-btn" :class="{ active: activeStatus === 'paused' }" @click="activeStatus = 'paused'">PAUSED</button>
-        <button class="filter-btn" :class="{ active: activeStatus === 'draft' }" @click="activeStatus = 'draft'">DRAFT</button>
+        <span class="filter-label">{{ t('strategy.filterStatus') }}:</span>
+        <button class="filter-btn" :class="{ active: activeStatus === 'all' }" @click="activeStatus = 'all'">{{ t('common.all') }}</button>
+        <button class="filter-btn" :class="{ active: activeStatus === 'active' }" @click="activeStatus = 'active'">{{ t('strategy.active') }}</button>
+        <button class="filter-btn" :class="{ active: activeStatus === 'paused' }" @click="activeStatus = 'paused'">{{ t('strategy.paused') }}</button>
+        <button class="filter-btn" :class="{ active: activeStatus === 'draft' }" @click="activeStatus = 'draft'">{{ t('strategy.draft') }}</button>
       </div>
     </div>
 
     <div class="strategies-grid">
-      <div class="strategy-card" v-for="strategy in filteredStrategies" :key="strategy.id">
+      <div class="strategy-card" v-for="s in filteredStrategies" :key="s.id">
         <div class="card-header">
           <div class="card-title-row">
-            <span class="card-name">{{ strategy.name }}</span>
-            <span class="card-status" :class="strategy.status">{{ strategy.status.toUpperCase() }}</span>
+            <span class="card-name">{{ s.name }}</span>
+            <span class="card-status" :class="s.status">{{ t('strategy.' + s.status) }}</span>
           </div>
-          <span class="card-type">{{ strategy.type.toUpperCase().replace('_', '_') }}</span>
+          <span class="card-type">{{ t('strategy.' + s.typeKey) }}</span>
         </div>
-        <p class="card-description">{{ strategy.description }}</p>
-        
+        <p class="card-description">{{ s.description }}</p>
+
         <div class="card-metrics">
           <div class="metric">
-            <span class="metric-label">WIN_RATE</span>
-            <span class="metric-value" :class="strategy.winRate >= 50 ? 'positive' : 'negative'">{{ strategy.winRate }}%</span>
+            <span class="metric-label">{{ t('strategy.winRate') }}</span>
+            <span class="metric-value" :class="s.winRate >= 50 ? 'positive' : 'negative'">{{ s.winRate }}%</span>
           </div>
           <div class="metric">
-            <span class="metric-label">PROFIT_FACTOR</span>
-            <span class="metric-value" :class="strategy.profitFactor >= 1.5 ? 'positive' : 'negative'">{{ strategy.profitFactor }}</span>
+            <span class="metric-label">{{ t('strategy.profitFactor') }}</span>
+            <span class="metric-value" :class="s.profitFactor >= 1.5 ? 'positive' : 'negative'">{{ s.profitFactor }}</span>
           </div>
           <div class="metric">
-            <span class="metric-label">MAX_DRAWDOWN</span>
-            <span class="metric-value" :class="strategy.maxDrawdown >= -10 ? 'positive' : 'negative'">{{ strategy.maxDrawdown }}%</span>
+            <span class="metric-label">{{ t('strategy.maxDrawdown') }}</span>
+            <span class="metric-value" :class="s.maxDrawdown >= -10 ? 'positive' : 'negative'">{{ s.maxDrawdown }}%</span>
           </div>
           <div class="metric">
-            <span class="metric-label">TOTAL_TRADES</span>
-            <span class="metric-value">{{ strategy.totalTrades }}</span>
+            <span class="metric-label">{{ t('strategy.totalTrades') }}</span>
+            <span class="metric-value">{{ s.totalTrades }}</span>
           </div>
         </div>
 
         <div class="card-performance">
           <div class="perf-chart">
             <div class="perf-bars">
-              <div class="perf-bar" v-for="(bar, i) in strategy.performance" :key="i"
+              <div class="perf-bar" v-for="(bar, i) in s.performance" :key="i"
                    :style="{ height: Math.abs(bar) + '%' }"
                    :class="bar >= 0 ? 'positive' : 'negative'">
               </div>
@@ -69,19 +69,19 @@
         </div>
 
         <div class="card-footer">
-          <span class="card-created">CREATED: {{ strategy.createdAt }}</span>
+          <span class="card-created">{{ t('strategy.created') }}: {{ s.createdAt }}</span>
           <div class="card-actions">
-            <button class="btn-icon" @click="toggleStrategy(strategy)">
-              {{ strategy.status === 'active' ? '[ PAUSE ]' : '[ RUN ]' }}
+            <button class="btn-icon" @click="toggleStrategy(s)">
+              [ {{ s.status === 'active' ? t('strategy.pause') : t('strategy.run') }} ]
             </button>
-            <button class="btn-icon" @click="editStrategy(strategy)">
-              [ EDIT ]
+            <button class="btn-icon" @click="editStrategy(s)">
+              [ {{ t('common.edit') }} ]
             </button>
-            <button class="btn-icon" @click="backtestStrategy(strategy)">
-              [ BACKTEST ]
+            <button class="btn-icon" @click="backtestStrategy(s)">
+              [ {{ t('strategy.backtest') }} ]
             </button>
-            <button class="btn-icon danger" @click="deleteStrategy(strategy.id)">
-              [ DELETE ]
+            <button class="btn-icon danger" @click="deleteStrategy(s.id)">
+              [ {{ t('common.delete') }} ]
             </button>
           </div>
         </div>
@@ -89,39 +89,39 @@
     </div>
 
     <div class="empty-state" v-if="filteredStrategies.length === 0">
-      // NO_STRATEGIES_FOUND
+      // {{ t('common.noData') }}
     </div>
 
     <div class="modal-overlay" v-if="showCreateModal" @click.self="showCreateModal = false">
       <div class="modal">
         <div class="modal-header">
-          <span class="modal-title">CREATE_STRATEGY.EXE</span>
+          <span class="modal-title">{{ t('strategy.createStrategy').toUpperCase() }}.EXE</span>
           <button class="btn-close" @click="showCreateModal = false">[ X ]</button>
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label>STRATEGY_NAME</label>
-            <input type="text" v-model="newStrategy.name" placeholder="e.g. BTC_TREND_FOLLOWER" />
+            <label>{{ t('strategy.strategyName') }}</label>
+            <input type="text" v-model="newStrategy.name" :placeholder="'e.g. BTC_TREND_FOLLOWER'" />
           </div>
           <div class="form-group">
-            <label>DESCRIPTION</label>
-            <textarea v-model="newStrategy.description" rows="3" placeholder="Describe your strategy..."></textarea>
+            <label>{{ t('strategy.description') }}</label>
+            <textarea v-model="newStrategy.description" rows="3" :placeholder="t('strategy.description') + '...'"></textarea>
           </div>
           <div class="form-group">
-            <label>STRATEGY_TYPE</label>
+            <label>{{ t('strategy.strategyType') }}</label>
             <select v-model="newStrategy.type">
-              <option value="trend">TREND_FOLLOWING</option>
-              <option value="mean_reversion">MEAN_REVERSION</option>
-              <option value="arbitrage">ARBITRAGE</option>
-              <option value="momentum">MOMENTUM</option>
+              <option value="trend">{{ t('strategy.trend') }}</option>
+              <option value="mean_reversion">{{ t('strategy.meanReversion') }}</option>
+              <option value="arbitrage">{{ t('strategy.arbitrage') }}</option>
+              <option value="momentum">{{ t('strategy.momentum') }}</option>
             </select>
           </div>
           <div class="form-group">
-            <label>SYMBOL</label>
+            <label>{{ t('trading.symbol') }}</label>
             <input type="text" v-model="newStrategy.symbol" placeholder="e.g. BTC/USDT" />
           </div>
           <div class="form-group">
-            <label>TIMEFRAME</label>
+            <label>{{ t('strategy.timeframe') }}</label>
             <select v-model="newStrategy.timeframe">
               <option value="1m">1_MINUTE</option>
               <option value="5m">5_MINUTES</option>
@@ -133,8 +133,8 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn-secondary" @click="showCreateModal = false">[ CANCEL ]</button>
-          <button class="btn-primary" @click="createStrategy">[ CREATE ]</button>
+          <button class="btn-secondary" @click="showCreateModal = false">[ {{ t('common.cancel') }} ]</button>
+          <button class="btn-primary" @click="createStrategy">[ {{ t('common.create') }} ]</button>
         </div>
       </div>
     </div>
@@ -143,22 +143,80 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t, locale } = useI18n()
 
 const activeType = ref('all')
 const activeStatus = ref('all')
 const showCreateModal = ref(false)
 
-const strategies = ref([
+// 中文策略数据
+const zhStrategies = [
+  {
+    id: 1,
+    name: 'BTC_趋势跟踪',
+    description: '基于 50 日和 200 日移动平均线金叉/死叉信号的比特幣趋势跟踪策略。',
+    typeKey: 'trend', status: 'active',
+    winRate: 68.5, profitFactor: 2.34, maxDrawdown: -8.2, totalTrades: 156,
+    createdAt: '2024-01-10',
+    performance: [15, 22, -8, 18, 25, -5, 30, 12, -10, 28]
+  },
+  {
+    id: 2,
+    name: 'ETH_均值回归',
+    description: '基于布林带的以太坊均值回归策略，识别超买超卖机会。',
+    typeKey: 'mean_reversion', status: 'active',
+    winRate: 72.3, profitFactor: 1.89, maxDrawdown: -5.6, totalTrades: 234,
+    createdAt: '2024-01-05',
+    performance: [8, 12, 5, 15, -3, 10, 8, 18, -2, 12]
+  },
+  {
+    id: 3,
+    name: 'SOL_动量策略',
+    description: '基于 RSI 和 MACD 指标的 Solana 动量交易策略。',
+    typeKey: 'momentum', status: 'paused',
+    winRate: 55.2, profitFactor: 1.45, maxDrawdown: -12.8, totalTrades: 89,
+    createdAt: '2024-01-12',
+    performance: [25, -15, 30, -20, 18, -10, 22, -8, 15, -12]
+  },
+  {
+    id: 4,
+    name: 'BTC_ETH_套利',
+    description: '利用比特币和以太坊价差的统计套利策略。',
+    typeKey: 'arbitrage', status: 'draft',
+    winRate: 85.0, profitFactor: 3.12, maxDrawdown: -2.1, totalTrades: 45,
+    createdAt: '2024-01-15',
+    performance: [5, 8, 3, 10, 4, 12, 6, 9, 5, 11]
+  },
+  {
+    id: 5,
+    name: '山寨币轮动',
+    description: '根据周线动量轮换到表现最佳的的山寨币。',
+    typeKey: 'momentum', status: 'active',
+    winRate: 61.8, profitFactor: 2.01, maxDrawdown: -15.3, totalTrades: 67,
+    createdAt: '2024-01-08',
+    performance: [35, -20, 45, -15, 28, -25, 32, -18, 22, -10]
+  },
+  {
+    id: 6,
+    name: '网格交易机器人',
+    description: '适用于震荡市场的自动网格交易策略。',
+    typeKey: 'mean_reversion', status: 'active',
+    winRate: 78.4, profitFactor: 1.67, maxDrawdown: -6.4, totalTrades: 312,
+    createdAt: '2024-01-03',
+    performance: [12, 8, 15, 6, 18, 9, 11, 7, 14, 10]
+  }
+]
+
+// 英文策略数据
+const enStrategies = [
   {
     id: 1,
     name: 'BTC_TREND_FOLLOWER',
     description: 'Follows 50-day and 200-day moving average crossovers for Bitcoin.',
-    type: 'trend',
-    status: 'active',
-    winRate: 68.5,
-    profitFactor: 2.34,
-    maxDrawdown: -8.2,
-    totalTrades: 156,
+    typeKey: 'trend', status: 'active',
+    winRate: 68.5, profitFactor: 2.34, maxDrawdown: -8.2, totalTrades: 156,
     createdAt: '2024-01-10',
     performance: [15, 22, -8, 18, 25, -5, 30, 12, -10, 28]
   },
@@ -166,12 +224,8 @@ const strategies = ref([
     id: 2,
     name: 'ETH_MEAN_REVERSION',
     description: 'Bollinger Bands based mean reversion strategy for Ethereum.',
-    type: 'mean_reversion',
-    status: 'active',
-    winRate: 72.3,
-    profitFactor: 1.89,
-    maxDrawdown: -5.6,
-    totalTrades: 234,
+    typeKey: 'mean_reversion', status: 'active',
+    winRate: 72.3, profitFactor: 1.89, maxDrawdown: -5.6, totalTrades: 234,
     createdAt: '2024-01-05',
     performance: [8, 12, 5, 15, -3, 10, 8, 18, -2, 12]
   },
@@ -179,12 +233,8 @@ const strategies = ref([
     id: 3,
     name: 'SOL_MOMENTUM',
     description: 'RSI and MACD based momentum strategy for Solana.',
-    type: 'momentum',
-    status: 'paused',
-    winRate: 55.2,
-    profitFactor: 1.45,
-    maxDrawdown: -12.8,
-    totalTrades: 89,
+    typeKey: 'momentum', status: 'paused',
+    winRate: 55.2, profitFactor: 1.45, maxDrawdown: -12.8, totalTrades: 89,
     createdAt: '2024-01-12',
     performance: [25, -15, 30, -20, 18, -10, 22, -8, 15, -12]
   },
@@ -192,12 +242,8 @@ const strategies = ref([
     id: 4,
     name: 'BTC_ETH_SPREAD',
     description: 'Statistical arbitrage between BTC and ETH prices.',
-    type: 'arbitrage',
-    status: 'draft',
-    winRate: 85.0,
-    profitFactor: 3.12,
-    maxDrawdown: -2.1,
-    totalTrades: 45,
+    typeKey: 'arbitrage', status: 'draft',
+    winRate: 85.0, profitFactor: 3.12, maxDrawdown: -2.1, totalTrades: 45,
     createdAt: '2024-01-15',
     performance: [5, 8, 3, 10, 4, 12, 6, 9, 5, 11]
   },
@@ -205,12 +251,8 @@ const strategies = ref([
     id: 5,
     name: 'ALTCOIN_ROTATION',
     description: 'Rotates into top performing altcoins based on weekly momentum.',
-    type: 'momentum',
-    status: 'active',
-    winRate: 61.8,
-    profitFactor: 2.01,
-    maxDrawdown: -15.3,
-    totalTrades: 67,
+    typeKey: 'momentum', status: 'active',
+    winRate: 61.8, profitFactor: 2.01, maxDrawdown: -15.3, totalTrades: 67,
     createdAt: '2024-01-08',
     performance: [35, -20, 45, -15, 28, -25, 32, -18, 22, -10]
   },
@@ -218,16 +260,24 @@ const strategies = ref([
     id: 6,
     name: 'GRID_TRADING_BOT',
     description: 'Automated grid trading strategy for range-bound markets.',
-    type: 'mean_reversion',
-    status: 'active',
-    winRate: 78.4,
-    profitFactor: 1.67,
-    maxDrawdown: -6.4,
-    totalTrades: 312,
+    typeKey: 'mean_reversion', status: 'active',
+    winRate: 78.4, profitFactor: 1.67, maxDrawdown: -6.4, totalTrades: 312,
     createdAt: '2024-01-03',
     performance: [12, 8, 15, 6, 18, 9, 11, 7, 14, 10]
   }
-])
+]
+
+const strategiesList = computed(() => {
+  return locale.value === 'zh-CN' ? zhStrategies : enStrategies
+})
+
+const filteredStrategies = computed(() => {
+  return strategiesList.value.filter(item => {
+    const typeMatch = activeType.value === 'all' || item.typeKey === activeType.value
+    const statusMatch = activeStatus.value === 'all' || item.status === activeStatus.value
+    return typeMatch && statusMatch
+  })
+})
 
 const newStrategy = ref({
   name: '',
@@ -235,14 +285,6 @@ const newStrategy = ref({
   type: 'trend',
   symbol: '',
   timeframe: '1h'
-})
-
-const filteredStrategies = computed(() => {
-  return strategies.value.filter(item => {
-    const typeMatch = activeType.value === 'all' || item.type === activeType.value
-    const statusMatch = activeStatus.value === 'all' || item.status === activeStatus.value
-    return typeMatch && statusMatch
-  })
 })
 
 function toggleStrategy(strategy: any) {
@@ -255,19 +297,21 @@ function editStrategy(strategy: any) {
 
 function backtestStrategy(strategy: any) {
   console.log('Backtesting strategy:', strategy.name)
-  alert('// BACKTEST_STARTED for ' + strategy.name)
+  alert(t('strategy.backtestStarted'))
 }
 
 function deleteStrategy(id: number) {
-  if (confirm('// CONFIRM_DELETE_STRATEGY?')) {
-    strategies.value = strategies.value.filter(s => s.id !== id)
+  if (confirm(t('strategy.confirmDelete') + '?')) {
+    strategiesList.value = strategiesList.value.filter((s: any) => s.id !== id)
   }
 }
 
 function createStrategy() {
   const strategy = {
     id: Date.now(),
-    ...newStrategy.value,
+    name: newStrategy.value.name,
+    description: newStrategy.value.description,
+    typeKey: newStrategy.value.type,
     status: 'draft',
     winRate: 0,
     profitFactor: 0,
@@ -276,7 +320,7 @@ function createStrategy() {
     createdAt: new Date().toISOString().slice(0, 10),
     performance: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
   }
-  strategies.value.unshift(strategy)
+  strategiesList.value.unshift(strategy)
   showCreateModal.value = false
   newStrategy.value = { name: '', description: '', type: 'trend', symbol: '', timeframe: '1h' }
 }
@@ -652,16 +696,16 @@ function createStrategy() {
   .strategies-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .card-metrics {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .filters {
     flex-direction: column;
     gap: 16px;
   }
-  
+
   .card-footer {
     flex-direction: column;
     gap: 12px;

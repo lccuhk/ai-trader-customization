@@ -79,8 +79,9 @@ html {
 }
 
 body {
-  /* IT 极简风格 - 使用等宽字体 */
-  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', 
+  /* IT 极简风格 - 使用更纱黑体作为主要中文字体 */
+  font-family: 'Sarasa Gothic', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei',
+    'JetBrains Mono', 'Fira Code', 'SF Mono', 'Monaco', 'Consolas',
     'Courier New', monospace;
   background: var(--bg-secondary);
   color: var(--text-primary);

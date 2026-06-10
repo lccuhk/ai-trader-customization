@@ -1,3 +1,32 @@
+export interface LoginRequest {
+  username: string
+  password: string
+}
+
+export interface RegisterRequest {
+  username: string
+  email: string
+  display_name: string
+  password: string
+}
+
+export interface CreateSignalRequest {
+  title: string
+  content: string
+  message_type: string
+  symbols: string[]
+  market?: string
+  direction?: string
+  entry_price?: number
+  stop_loss?: number
+  take_profit?: number
+}
+
+export interface CreateReplyRequest {
+  content: string
+  parent_id?: number
+}
+
 export interface User {
   id: number
   username: string
@@ -626,9 +655,24 @@ export interface WSAISignalData {
 
 export interface ApiResponse<T = any> {
   success: boolean
-  code: number
+  code?: number
   message?: string
   data?: T
+  signal?: T
+  signals?: T[]
+  reply?: T
+  replies?: T[]
+  participant?: T
+  participants?: T[]
+  quality?: T
+  news?: T[]
+  events?: T[]
+  indicators?: T[]
+  token?: string
+  user?: User
+  is_following?: boolean
+  likes?: number
+  [key: string]: any
 }
 
 export interface PaginatedResponse<T> {

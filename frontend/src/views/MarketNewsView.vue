@@ -1,148 +1,276 @@
 <template>
   <div class="market-news">
     <div class="page-header">
-      <h1 class="page-title">> MARKET_NEWS.EXE</h1>
+      <h1 class="page-title">&gt; {{ t('market.news').toUpperCase() }}.EXE</h1>
       <div class="status-bar">
-        <span class="status-indicator online">● FEED_LIVE</span>
-        <span class="status-item">LAST_UPDATED: {{ lastUpdated }}</span>
+        <span class="status-indicator online">● {{ t('market.feedLive') }}</span>
+        <span class="status-item">{{ t('market.lastUpdated') }}: {{ lastUpdated }}</span>
       </div>
     </div>
 
     <div class="filters">
       <div class="filter-group">
-        <span class="filter-label">CATEGORY:</span>
-        <button class="filter-btn" :class="{ active: activeCategory === 'all' }" @click="activeCategory = 'all'">ALL</button>
-        <button class="filter-btn" :class="{ active: activeCategory === 'crypto' }" @click="activeCategory = 'crypto'">CRYPTO</button>
-        <button class="filter-btn" :class="{ active: activeCategory === 'stocks' }" @click="activeCategory = 'stocks'">STOCKS</button>
-        <button class="filter-btn" :class="{ active: activeCategory === 'macro' }" @click="activeCategory = 'macro'">MACRO</button>
-        <button class="filter-btn" :class="{ active: activeCategory === 'regulation' }" @click="activeCategory = 'regulation'">REGULATION</button>
+        <span class="filter-label">{{ t('market.category') }}:</span>
+        <button
+          class="filter-btn"
+          :class="{ active: activeCategory === 'all' }"
+          @click="activeCategory = 'all'"
+        >{{ t('common.all') }}</button>
+        <button
+          class="filter-btn"
+          :class="{ active: activeCategory === 'crypto' }"
+          @click="activeCategory = 'crypto'"
+        >{{ t('market.crypto') }}</button>
+        <button
+          class="filter-btn"
+          :class="{ active: activeCategory === 'stocks' }"
+          @click="activeCategory = 'stocks'"
+        >{{ t('market.stocks') }}</button>
+        <button
+          class="filter-btn"
+          :class="{ active: activeCategory === 'macro' }"
+          @click="activeCategory = 'macro'"
+        >{{ t('market.macro') }}</button>
+        <button
+          class="filter-btn"
+          :class="{ active: activeCategory === 'regulation' }"
+          @click="activeCategory = 'regulation'"
+        >{{ t('market.regulation') }}</button>
       </div>
       <div class="filter-group">
-        <span class="filter-label">IMPORTANCE:</span>
-        <button class="filter-btn" :class="{ active: activeImportance === 'all' }" @click="activeImportance = 'all'">ALL</button>
-        <button class="filter-btn" :class="{ active: activeImportance === 'high' }" @click="activeImportance = 'high'">HIGH</button>
-        <button class="filter-btn" :class="{ active: activeImportance === 'medium' }" @click="activeImportance = 'medium'">MEDIUM</button>
-        <button class="filter-btn" :class="{ active: activeImportance === 'low' }" @click="activeImportance = 'low'">LOW</button>
+        <span class="filter-label">{{ t('market.importance') }}:</span>
+        <button
+          class="filter-btn"
+          :class="{ active: activeImportance === 'all' }"
+          @click="activeImportance = 'all'"
+        >{{ t('common.all') }}</button>
+        <button
+          class="filter-btn"
+          :class="{ active: activeImportance === 'high' }"
+          @click="activeImportance = 'high'"
+        >{{ t('market.high') }}</button>
+        <button
+          class="filter-btn"
+          :class="{ active: activeImportance === 'medium' }"
+          @click="activeImportance = 'medium'"
+        >{{ t('market.medium') }}</button>
+        <button
+          class="filter-btn"
+          :class="{ active: activeImportance === 'low' }"
+          @click="activeImportance = 'low'"
+        >{{ t('market.low') }}</button>
       </div>
     </div>
 
     <div class="news-grid">
-      <div class="news-card" v-for="news in filteredNews" :key="news.id">
+      <div class="news-card" v-for="item in filteredNews" :key="item.id">
         <div class="news-header">
-          <span class="news-source">{{ news.source }}</span>
-          <span class="news-importance" :class="news.importance">{{ news.importance.toUpperCase() }}</span>
-          <span class="news-category">{{ news.category.toUpperCase() }}</span>
+          <span class="news-source">{{ item.source }}</span>
+          <span class="news-importance" :class="item.importance">{{ t('market.' + item.importance) }}</span>
+          <span class="news-category">{{ t('market.' + item.category) }}</span>
         </div>
-        <h3 class="news-title">{{ news.title }}</h3>
-        <p class="news-summary">{{ news.summary }}</p>
+        <h3 class="news-title">{{ item.title }}</h3>
+        <p class="news-summary">{{ item.summary }}</p>
         <div class="news-tags">
-          <span class="news-tag" v-for="tag in news.tags" :key="tag">${{ tag }}</span>
+          <span class="news-tag" v-for="tag in item.tags" :key="tag">${{ tag }}</span>
         </div>
         <div class="news-footer">
-          <span class="news-time">{{ news.time }}</span>
-          <button class="btn-read" @click="readNews(news)">[ READ_MORE ]</button>
+          <span class="news-time">{{ item.time }}</span>
+          <button class="btn-read" @click="readNews(item)">[ {{ t('market.readMore').toUpperCase() }} ]</button>
         </div>
       </div>
     </div>
 
     <div class="empty-state" v-if="filteredNews.length === 0">
-      // NO_NEWS_FOUND
+      // {{ t('common.noData') }}
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 
-const lastUpdated = ref(new Date().toLocaleTimeString())
+const { t, locale } = useI18n()
+
+const lastUpdated = ref(new Date().toLocaleString())
 const activeCategory = ref('all')
 const activeImportance = ref('all')
 
-const news = ref([
+// 中文新闻数据
+const zhNews = [
   {
     id: 1,
     source: 'COINDESK',
     importance: 'high',
     category: 'crypto',
-    title: 'BTC_BREAKS_$50K_RESISTANCE',
-    summary: 'Bitcoin surges past $50,000 amid strong institutional demand and positive ETF flows.',
-    tags: ['BTC', 'ETF', 'INSTITUTIONAL'],
-    time: '5m_ago'
+    title: '比特币突破 50,000 美元关口',
+    summary: '比特币价格强势突破 50,000 美元，机构需求强劲和 ETF 资金持续流入推动上涨。',
+    tags: ['BTC', 'ETF', '机构'],
+    time: '5 分钟前'
   },
   {
     id: 2,
     source: 'BLOOMBERG',
     importance: 'high',
     category: 'macro',
-    title: 'FED_HOLDS_RATES_STEADY',
-    summary: 'Federal Reserve maintains interest rates, signals potential cuts later this year.',
-    tags: ['FED', 'INTEREST_RATES', 'MACRO'],
-    time: '15m_ago'
+    title: '美联储维持利率不变',
+    summary: '美联储宣布维持当前利率水平不变，暗示今年晚些时候可能降息。',
+    tags: ['美联储', '利率', '宏观'],
+    time: '15 分钟前'
   },
   {
     id: 3,
     source: 'REUTERS',
     importance: 'medium',
     category: 'stocks',
-    title: 'NVDA_EARNINGS_BEAT_EXPECTATIONS',
-    summary: 'NVIDIA reports record revenue driven by AI chip demand, stock up 8% after hours.',
-    tags: ['NVDA', 'AI', 'EARNINGS'],
-    time: '32m_ago'
+    title: '英伟达业绩超预期',
+    summary: '英伟达公布创纪录营收，AI 芯片需求持续爆发，盘后股价上涨 8%。',
+    tags: ['NVDA', 'AI', '财报'],
+    time: '32 分钟前'
   },
   {
     id: 4,
     source: 'THE_BLOCK',
     importance: 'medium',
     category: 'regulation',
-    title: 'SEC_APPROVES_NEW_CRYPTO_ETFS',
-    summary: 'SEC approves spot Ethereum ETF applications, paving way for trading next month.',
-    tags: ['ETH', 'ETF', 'SEC', 'REGULATION'],
-    time: '1h_ago'
+    title: 'SEC 批准新加密货币 ETF',
+    summary: '美国 SEC 批准现货以太坊 ETF 申请，为下月交易铺平道路。',
+    tags: ['ETH', 'ETF', 'SEC', '监管'],
+    time: '1 小时前'
   },
   {
     id: 5,
     source: 'COINTELEGRAPH',
     importance: 'low',
     category: 'crypto',
-    title: 'SOLANA_ECOSYSTEM_GROWS_25%',
-    summary: 'Solana DeFi ecosystem sees 25% growth in TVL over past month.',
+    title: 'Solana 生态增长 25%',
+    summary: 'Solana DeFi 生态 TVL 在过去一个月增长 25%，生态项目持续扩展。',
     tags: ['SOL', 'DeFi', 'TVL'],
-    time: '2h_ago'
+    time: '2 小时前'
   },
   {
     id: 6,
     source: 'WSJ',
     importance: 'high',
     category: 'macro',
-    title: 'CPI_DATA_SHOWS_INFLATION_COOLING',
-    summary: 'Consumer Price Index rises 2.1% YoY, lowest since 2021.',
-    tags: ['CPI', 'INFLATION', 'ECONOMY'],
-    time: '3h_ago'
+    title: 'CPI 数据表明通胀放缓',
+    summary: '消费者价格指数同比上涨 2.1%，创 2021 年以来最低水平。',
+    tags: ['CPI', '通胀', '经济'],
+    time: '3 小时前'
   },
   {
     id: 7,
     source: 'BLOOMBERG',
     importance: 'medium',
     category: 'stocks',
-    title: 'TSLA_DELIVERIES_EXCEED_FORECASTS',
-    summary: 'Tesla delivers record 500K+ vehicles in Q4, beating analyst estimates.',
-    tags: ['TSLA', 'DELIVERIES', 'EV'],
-    time: '4h_ago'
+    title: '特斯拉交付量超预期',
+    summary: '特斯拉第四季度交付超 50 万辆，超出分析师预期。',
+    tags: ['TSLA', '交付', '电动汽车'],
+    time: '4 小时前'
   },
   {
     id: 8,
     source: 'COINDESK',
     importance: 'low',
     category: 'crypto',
-    title: 'ETH_MERGE_COMPLETION_NEAR',
+    title: '以太坊合并进展顺利',
+    summary: '以太坊开发者宣布合并过渡的最终测试网已完成测试。',
+    tags: ['ETH', '合并', '升级'],
+    time: '5 小时前'
+  }
+]
+
+// 英文新闻数据
+const enNews = [
+  {
+    id: 1,
+    source: 'COINDESK',
+    importance: 'high',
+    category: 'crypto',
+    title: 'BTC Breaks $50K Resistance',
+    summary: 'Bitcoin surges past $50,000 amid strong institutional demand and positive ETF flows.',
+    tags: ['BTC', 'ETF', 'INSTITUTIONAL'],
+    time: '5m ago'
+  },
+  {
+    id: 2,
+    source: 'BLOOMBERG',
+    importance: 'high',
+    category: 'macro',
+    title: 'Fed Holds Rates Steady',
+    summary: 'Federal Reserve maintains interest rates, signals potential cuts later this year.',
+    tags: ['FED', 'INTEREST_RATES', 'MACRO'],
+    time: '15m ago'
+  },
+  {
+    id: 3,
+    source: 'REUTERS',
+    importance: 'medium',
+    category: 'stocks',
+    title: 'NVDA Earnings Beat Expectations',
+    summary: 'NVIDIA reports record revenue driven by AI chip demand, stock up 8% after hours.',
+    tags: ['NVDA', 'AI', 'EARNINGS'],
+    time: '32m ago'
+  },
+  {
+    id: 4,
+    source: 'THE_BLOCK',
+    importance: 'medium',
+    category: 'regulation',
+    title: 'SEC Approves New Crypto ETFs',
+    summary: 'SEC approves spot Ethereum ETF applications, paving way for trading next month.',
+    tags: ['ETH', 'ETF', 'SEC', 'REGULATION'],
+    time: '1h ago'
+  },
+  {
+    id: 5,
+    source: 'COINTELEGRAPH',
+    importance: 'low',
+    category: 'crypto',
+    title: 'Solana Ecosystem Grows 25%',
+    summary: 'Solana DeFi ecosystem sees 25% growth in TVL over past month.',
+    tags: ['SOL', 'DeFi', 'TVL'],
+    time: '2h ago'
+  },
+  {
+    id: 6,
+    source: 'WSJ',
+    importance: 'high',
+    category: 'macro',
+    title: 'CPI Data Shows Inflation Cooling',
+    summary: 'Consumer Price Index rises 2.1% YoY, lowest since 2021.',
+    tags: ['CPI', 'INFLATION', 'ECONOMY'],
+    time: '3h ago'
+  },
+  {
+    id: 7,
+    source: 'BLOOMBERG',
+    importance: 'medium',
+    category: 'stocks',
+    title: 'TSLA Deliveries Exceed Forecasts',
+    summary: 'Tesla delivers record 500K+ vehicles in Q4, beating analyst estimates.',
+    tags: ['TSLA', 'DELIVERIES', 'EV'],
+    time: '4h ago'
+  },
+  {
+    id: 8,
+    source: 'COINDESK',
+    importance: 'low',
+    category: 'crypto',
+    title: 'ETH Merge Completion Near',
     summary: 'Ethereum developers announce final testnet for merge transition.',
     tags: ['ETH', 'MERGE', 'UPGRADE'],
-    time: '5h_ago'
+    time: '5h ago'
   }
-])
+]
+
+const newsList = computed(() => {
+  return locale.value === 'zh-CN' ? zhNews : enNews
+})
 
 const filteredNews = computed(() => {
-  return news.value.filter(item => {
+  return newsList.value.filter(item => {
     const categoryMatch = activeCategory.value === 'all' || item.category === activeCategory.value
     const importanceMatch = activeImportance.value === 'all' || item.importance === activeImportance.value
     return categoryMatch && importanceMatch
@@ -150,15 +278,14 @@ const filteredNews = computed(() => {
 })
 
 function readNews(newsItem: any) {
-  console.log('Reading news:', newsItem.title)
-  window.open('#', '_blank')
+  console.log('Reading news:', newsItem.title, newsItem)
 }
 
 let updateInterval: number
 
 onMounted(() => {
   updateInterval = window.setInterval(() => {
-    lastUpdated.value = new Date().toLocaleTimeString()
+    lastUpdated.value = new Date().toLocaleString()
   }, 30000)
 })
 
@@ -216,6 +343,7 @@ onUnmounted(() => {
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .filter-label {
@@ -376,11 +504,11 @@ onUnmounted(() => {
     align-items: flex-start;
     gap: 12px;
   }
-  
+
   .news-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .filters {
     flex-direction: column;
     gap: 16px;

@@ -20,8 +20,24 @@ class Settings:
     )
     
     POSTGRESQL_URL = os.getenv('POSTGRESQL_URL')
-    
-    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+    SECRET_KEY = os.getenv('SECRET_KEY')
+
+    @property
+    def secret_key(self) -> str:
+        if self.SECRET_KEY and self.SECRET_KEY != 'dev-secret-key-change-in-production':
+            return self.SECRET_KEY
+        import warnings
+        if self.is_production:
+            raise RuntimeError(
+                "SECRET_KEY must be set in production! "
+                "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+        warnings.warn(
+            "WARNING: Using insecure default SECRET_KEY. "
+            "Set SECRET_KEY in your .env file for production use."
+        )
+        return 'dev-secret-key-change-in-production'
     
     FLASK_ENV = os.getenv('FLASK_ENV', 'development')
     FLASK_DEBUG = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
@@ -31,7 +47,7 @@ class Settings:
     
     ALLOWED_ORIGINS = os.getenv(
         'ALLOWED_ORIGINS',
-        'https://trading-agent-for-dscourse.surge.sh,http://localhost:8080'
+        'https://trading-agent-for-dscourse.surge.sh,http://localhost:3000,http://localhost:8080'
     ).split(',')
     
     TOKEN_EXPIRE_DAYS = int(os.getenv('TOKEN_EXPIRE_DAYS', 30))

@@ -37,16 +37,16 @@
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label>{{ t('common.title') || '标题' }}</label>
-            <input v-model="formData.title" type="text" class="form-input" :placeholder="t('common.title') || '标题'" />
+            <label>{{ t('common.title') }}</label>
+            <input v-model="formData.title" type="text" class="form-input" :placeholder="t('common.title')" />
           </div>
           <div class="form-group">
-            <label>{{ t('common.content') || '内容' }}</label>
-            <textarea v-model="formData.content" class="form-input" rows="4" :placeholder="t('common.content') || '内容'"></textarea>
+            <label>{{ t('common.content') }}</label>
+            <textarea v-model="formData.content" class="form-input" rows="4" :placeholder="t('common.content')"></textarea>
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>{{ t('common.type') || '类型' }}</label>
+              <label>{{ t('common.type') }}</label>
               <select v-model="formData.message_type" class="form-input">
                 <option value="long">{{ t('trading.buy') }}</option>
                 <option value="short">{{ t('trading.sell') }}</option>
@@ -56,7 +56,7 @@
               </select>
             </div>
             <div class="form-group">
-              <label>{{ t('trading.symbol') || '相关标的' }}</label>
+              <label>{{ t('trading.symbol') }}</label>
               <input v-model="formData.symbols" type="text" class="form-input" placeholder="BTC, ETH" />
             </div>
           </div>
@@ -75,13 +75,11 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 import { useSignalStore } from '@/stores/signal'
 import SignalList from '@/components/SignalList.vue'
 
 const { t } = useI18n()
 
-const router = useRouter()
 const signalStore = useSignalStore()
 
 const showCreateModal = ref(false)
@@ -116,8 +114,8 @@ async function handleCreate() {
     formData.content = ''
     formData.symbols = ''
     formData.message_type = 'info'
-    
-    router.go(0)
+
+    signalStore.fetchSignals()
   } finally {
     submitting.value = false
   }
@@ -167,7 +165,7 @@ async function handleCreate() {
 .hero-prefix {
   display: inline-block;
   color: var(--success-color);
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 700;
   margin-right: 8px;
   animation: blink 1s step-end infinite;
@@ -188,7 +186,7 @@ async function handleCreate() {
 }
 
 .hero-subtitle {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--success-color);
   margin: 0 0 24px 0;
   font-family: inherit;
@@ -260,7 +258,7 @@ async function handleCreate() {
 }
 
 .stat-label {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;

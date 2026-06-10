@@ -1,0 +1,51 @@
+/**
+ * 更纱黑体 (Sarasa Gothic) 字体配置
+ *
+ * 使用方法:
+ * 1. 从 https://github.com/be5invis/Sarasa-Gothic/releases 下载最新发布版
+ * 2. 解压后找到 ttf/ 目录下的以下文件，复制到 frontend/public/fonts/ 目录:
+ *    - sarasa-gothic-regular.ttf
+ *    - sarasa-gothic-bold.ttf
+ *    - sarasa-gothic-semibold.ttf
+ *    - sarasa-gothic-light.ttf
+ * 3. 或者也可以使用 ttc 格式（字体集合文件）
+ *
+ * 备选方案（无需下载）:
+ * 如果不想手动下载字体，可以将以下 Google Fonts 的 Noto Sans SC 作为后备字体使用
+ */
+
+/* 更纱黑体 - Regular */
+@font-face {
+  font-family: 'Sarasa Gothic';
+  src: url('/fonts/sarasa-gothic-regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 更纱黑体 - SemiBold */
+@font-face {
+  font-family: 'Sarasa Gothic';
+  src: url('/fonts/sarasa-gothic-semibold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 更纱黑体 - Bold */
+@font-face {
+  font-family: 'Sarasa Gothic';
+  src: url('/fonts/sarasa-gothic-bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 更纱黑体 - Light */
+@font-face {
+  font-family: 'Sarasa Gothic';
+  src: url('/fonts/sarasa-gothic-light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}

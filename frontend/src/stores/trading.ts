@@ -24,16 +24,24 @@ export const useTradingStore = defineStore('trading', () => {
     loading.value = true
     error.value = null
     try {
+      console.log('[Portfolio] 开始加载...', 'is_simulation:', isSimulation)
       const response = await tradingService.getPortfolio(isSimulation)
+      console.log('[Portfolio] 收到响应:', JSON.stringify(response).slice(0, 200))
       if (response.success && response.data) {
         portfolio.value = response.data.portfolio
         positions.value = response.data.positions
         trades.value = response.data.recent_trades
+        console.log('[Portfolio] 数据加载成功')
+      } else {
+        console.warn('[Portfolio] 响应异常:', response)
+        error.value = '响应数据格式异常'
       }
     } catch (e: any) {
+      console.error('[Portfolio] 请求失败:', e.message)
       error.value = e.message || '加载投资组合失败'
     } finally {
       loading.value = false
+      console.log('[Portfolio] 加载完成')
     }
   }
 

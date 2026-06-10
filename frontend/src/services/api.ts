@@ -61,7 +61,7 @@ export const authApi = {
     api.post('/auth/register', data),
 
   getCurrentUser: (): Promise<AxiosResponse<ApiResponse<User>>> =>
-    api.get('/auth/me')
+    api.get('/users/me')
 }
 
 export const signalApi = {

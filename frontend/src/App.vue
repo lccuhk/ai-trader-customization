@@ -20,9 +20,9 @@
     </main>
 
     <!-- AI 浮动按钮（右下角） -->
-    <button 
-      class="ai-float-btn" 
-      @click="toggleAIPanel" 
+    <button
+      class="ai-float-btn"
+      @click="toggleAIPanel"
       v-if="userStore.isLoggedIn"
     >
       <span class="icon">🤖</span>
@@ -84,29 +84,50 @@ function toggleAIPanel() {
   aiPanelOpen.value = !aiPanelOpen.value
 }
 
-const showNavbar = computed(() => {
-  const noNavbarRoutes = ['Login', 'Register', 'NotFound']
-  return !noNavbarRoutes.includes(route.name as string)
-})
+const authPages = ['Login', 'Register', 'NotFound']
+const isAuthPage = computed(() => authPages.includes(route.name as string))
 </script>
 
 <style>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
+body {
+  background: var(--bg-secondary, #0a0a0a);
+  color: var(--text-primary, #e0e0e0);
+}
+
+:root {
+  --bg-primary: #111111;
+  --bg-secondary: #0a0a0a;
+  --text-primary: #e0e0e0;
+  --text-secondary: #666666;
+  --border-color: #333333;
+  --success-color: #00ff41;
+  --danger-color: #ff3333;
+  --warning-color: #ff9900;
+  --info-color: #3399ff;
+  --danger-bg: rgba(255, 51, 51, 0.08);
+  --warning-bg: rgba(255, 153, 0, 0.08);
+  --font-mono: 'Courier New', Courier, monospace;
+}
+
+/* Unified font — terminal aesthetic throughout */
+body,
+input, select, textarea, button,
+table, th, td,
+.panel-title, .page-title,
+.metric-value, .setting-value, .status-bar {
+  font-family: var(--font-mono);
 }
 </style>
 
 <style scoped>
 .app {
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
 }
 
 .app-body {

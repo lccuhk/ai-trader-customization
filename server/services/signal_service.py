@@ -321,7 +321,7 @@ def create_signal(
     content: str,
     message_type: str = 'operation',
     market: str = 'us-stock',
-    symbol: str = '',
+    symbols: Optional[List[str]] = None,
     direction: str = '',
     entry_price: Optional[float] = None,
     stop_loss: Optional[float] = None,
@@ -344,7 +344,8 @@ def create_signal(
         user = db.query(User).filter(User.id == user_id).first()
         agent_name = user.username if user else '匿名交易者'
         
-        symbols = [symbol] if symbol else []
+        if symbols is None:
+            symbols = []
         
         full_content = content
         if direction or entry_price or stop_loss or take_profit:

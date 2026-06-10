@@ -70,7 +70,7 @@ def init_test_account():
 def create_app() -> Flask:
     app = Flask(__name__)
     
-    app.config['SECRET_KEY'] = settings.SECRET_KEY
+    app.config['SECRET_KEY'] = settings.secret_key
     app.config['DEBUG'] = settings.FLASK_DEBUG
     app.config['ENV'] = settings.FLASK_ENV
     

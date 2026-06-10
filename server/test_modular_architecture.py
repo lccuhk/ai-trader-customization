@@ -72,7 +72,7 @@ def test_config_module():
     
     tests = [
         ('DATABASE_URL is set', bool(settings.DATABASE_URL)),
-        ('SECRET_KEY is set', bool(settings.SECRET_KEY)),
+        ('SECRET_KEY is set', bool(settings.secret_key)),
         ('ALLOWED_ORIGINS is a list', isinstance(settings.ALLOWED_ORIGINS, list)),
         ('PORT is integer', isinstance(settings.PORT, int)),
         ('is_development works', isinstance(settings.is_development, bool)),

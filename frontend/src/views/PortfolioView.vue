@@ -20,6 +20,9 @@
 
     <div v-if="tradingStore.loading" class="loading">
       {{ t('common.loading') }}
+      <div v-if="loadTimeout" class="timeout-hint">
+        ⚠️ 加载超时，请确认后端是否已启动（python server/simple_server.py）
+      </div>
     </div>
 
     <div v-else-if="tradingStore.error" class="error">
@@ -144,13 +147,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTradingStore } from '@/stores/trading'
 const { t } = useI18n()
 const tradingStore = useTradingStore()
 
 const isSimulation = ref(true)
+const loadTimeout = ref(false)
 
 async function switchMode(simulation: boolean) {
   isSimulation.value = simulation
@@ -166,8 +170,29 @@ function formatTime(time: string) {
   })
 }
 
-onMounted(async () => {
-  await tradingStore.loadPortfolio(isSimulation.value)
+let timeoutId: number | undefined
+
+onMounted(() => {
+  console.log('[PortfolioView] 组件已挂载，准备加载数据...')
+
+  // 设置超时检测 - 10秒后如果还在加载则提示
+  timeoutId = window.setTimeout(() => {
+    if (tradingStore.loading) {
+      loadTimeout.value = true
+      console.warn('[PortfolioView] ⚠️ 加载超时（10s），请确认:')
+      console.warn('[PortfolioView]   1. 后端是否运行: python server/simple_server.py')
+      console.warn('[PortfolioView]   2. 代理配置: localhost:8001 是否可访问')
+    }
+  }, 10000)
+
+  tradingStore.loadPortfolio(isSimulation.value).finally(() => {
+    loadTimeout.value = false
+    if (timeoutId) clearTimeout(timeoutId)
+  })
+})
+
+onUnmounted(() => {
+  if (timeoutId) clearTimeout(timeoutId)
 })
 </script>
 
@@ -222,6 +247,17 @@ onMounted(async () => {
 
 .error {
   color: var(--danger);
+}
+
+.timeout-hint {
+  margin-top: 16px;
+  padding: 12px 20px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  font-size: 13px;
+  border-radius: 8px;
+  display: inline-block;
 }
 
 .stats-grid {

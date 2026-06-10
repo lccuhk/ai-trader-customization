@@ -3,7 +3,10 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import i18n from './i18n'
+import { useUserStore } from './stores/user'
+import { useWebSocketStore } from './stores/websocket'
 import './styles/global.css'
+import './styles/fonts.css'
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -12,16 +15,13 @@ app.use(pinia)
 app.use(router)
 app.use(i18n)
 
-// 延迟初始化 store，避免循环依赖问题
-app.mount('#app')
-
-// 现在可以安全地使用 store 了
-import { useUserStore } from './stores/user'
-import { useWebSocketStore } from './stores/websocket'
-
+// 在 mount 前初始化 store 以避免首次渲染时状态为空
 const userStore = useUserStore()
 userStore.initializeFromStorage()
 
+app.mount('#app')
+
+// 登录后异步初始化（WebSocket 连接等后台任务）
 async function initializeApp() {
   if (userStore.isLoggedIn) {
     const isValid = await userStore.fetchCurrentUser()
