@@ -10,7 +10,11 @@ const defaultSettings: QuickSettings = {
   refreshInterval: 30,
   compactMode: false,
   showMarketNews: true,
-  language: 'zh-CN'
+  language: 'zh-CN',
+  tradeAlerts: true,
+  riskAlerts: true,
+  signalAlerts: false,
+  autoStopLoss: true
 }
 
 export const useSettingsStore = defineStore('settings', () => {

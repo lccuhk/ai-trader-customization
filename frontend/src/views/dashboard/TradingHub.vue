@@ -3,47 +3,50 @@
     <!-- Order Panel -->
     <div class="panel order-panel">
       <div class="panel-header">
-        <span class="panel-title">&gt; 下单面板</span>
+        <span class="panel-title">&gt; {{ $t('trading.orderPanel') }}</span>
         <div class="panel-controls">
-          <button class="mode-btn" :class="{ active: orderForm.side === 'buy' }" @click="orderForm.side = 'buy'">买入</button>
-          <button class="mode-btn sell" :class="{ active: orderForm.side === 'sell' }" @click="orderForm.side = 'sell'">卖出</button>
+          <button class="mode-btn" :class="{ active: orderForm.side === 'buy' }" @click="orderForm.side = 'buy'">{{ $t('trading.buy') }}</button>
+          <button class="mode-btn sell" :class="{ active: orderForm.side === 'sell' }" @click="orderForm.side = 'sell'">{{ $t('trading.sell') }}</button>
         </div>
       </div>
       <div class="panel-body">
         <div class="form-row">
           <div class="form-group">
-            <label>标的</label>
+            <label>{{ $t('trading.symbol') }}</label>
             <select v-model="orderForm.symbol">
               <option v-for="s in symbols" :key="s" :value="s">{{ s }}</option>
             </select>
           </div>
           <div class="form-group">
-            <label>类型</label>
+            <label>{{ $t('trading.type') }}</label>
             <select v-model="orderForm.type">
-              <option value="market">市价</option>
-              <option value="limit">限价</option>
+              <option value="market">{{ $t('trading.market') }}</option>
+              <option value="limit">{{ $t('trading.limit') }}</option>
             </select>
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>数量</label>
+            <label>{{ $t('trading.quantity') }}</label>
             <input type="number" v-model.number="orderForm.amount" step="0.01" placeholder="0.00" />
           </div>
           <div class="form-group" v-if="orderForm.type === 'limit'">
-            <label>价格</label>
+            <label>{{ $t('trading.price') }}</label>
             <input type="number" v-model.number="orderForm.price" step="0.01" placeholder="0.00" />
           </div>
           <div class="form-group">
-            <label>杠杆</label>
+            <label>{{ $t('trading.leverage') }}</label>
             <select v-model="orderForm.leverage">
               <option v-for="n in [1,2,3,5,10,20]" :key="n" :value="n">{{ n }}x</option>
             </select>
+            <div class="leverage-warning" v-if="leverageExceedsLimit">
+              {{ $t('trading.leverageWarning', { leverage: orderForm.leverage, max: riskSettings.maxLeverage }) }}
+            </div>
           </div>
         </div>
         <div class="order-estimate" v-if="orderForm.amount > 0">
-          <span>预估占用: ${{ estimatedTotal }}</span>
-          <span>可用: ${{ userAssets.available.toLocaleString() }}</span>
+          <span>{{ $t('trading.estimateCost') }}: ${{ estimatedTotal }}</span>
+          <span>{{ $t('trading.available') }}: ${{ availableBalance.toLocaleString() }}</span>
         </div>
         <button
           class="submit-btn"
@@ -51,7 +54,7 @@
           :disabled="orderForm.amount <= 0"
           @click="submitOrder"
         >
-          {{ orderForm.side === 'buy' ? '买入' : '卖出' }} {{ orderForm.symbol }}
+          {{ orderForm.side === 'buy' ? $t('trading.buy') : $t('trading.sell') }} {{ orderForm.symbol }}
         </button>
       </div>
     </div>
@@ -59,25 +62,25 @@
     <!-- Positions -->
     <div class="panel">
       <div class="panel-header">
-        <span class="panel-title">&gt; 持仓 ({{ positions.length }})</span>
+        <span class="panel-title">&gt; {{ $t('trading.positions') }} ({{ activePositions.length }})</span>
       </div>
       <div class="panel-body">
-        <table class="data-table" v-if="positions.length">
+        <table class="data-table" v-if="activePositions.length">
           <thead>
             <tr>
-              <th>标的</th>
-              <th>方向</th>
-              <th>数量</th>
-              <th>开仓价</th>
-              <th>标记价</th>
-              <th>盈亏</th>
-              <th>收益率</th>
+              <th>{{ $t('trading.symbol') }}</th>
+              <th>{{ $t('trading.side') }}</th>
+              <th>{{ $t('trading.quantity') }}</th>
+              <th>{{ $t('trading.entryPrice') }}</th>
+              <th>{{ $t('trading.markPrice') }}</th>
+              <th>{{ $t('trading.pnl') }}</th>
+              <th>{{ $t('trading.roi') }}</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="p in positions" :key="p.symbol">
+            <tr v-for="p in activePositions" :key="p.symbol">
               <td class="symbol">{{ p.symbol }}</td>
-              <td><span class="side" :class="p.side">{{ p.side === 'long' ? '多' : '空' }}</span></td>
+              <td><span class="side" :class="p.side">{{ p.side === 'long' ? $t('signal.long') : $t('signal.short') }}</span></td>
               <td>{{ p.size }}</td>
               <td>${{ toLocale(p.entryPrice) }}</td>
               <td>${{ toLocale(p.markPrice) }}</td>
@@ -86,67 +89,96 @@
             </tr>
           </tbody>
         </table>
-        <div v-else class="empty">暂无持仓</div>
+        <div v-else class="empty">{{ $t('trading.noPositions') }}</div>
       </div>
     </div>
 
-    <!-- Open Orders & Signal Recommendations -->
-    <div class="split-row">
-      <!-- Open Orders -->
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">&gt; 挂单 ({{ openOrders.length }})</span>
-        </div>
-        <div class="panel-body">
-          <table class="data-table compact" v-if="openOrders.length">
-            <thead>
-              <tr>
-                <th>标的</th>
-                <th>方向</th>
-                <th>类型</th>
-                <th>数量</th>
-                <th>价格</th>
-                <th>状态</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="o in openOrders" :key="o.id">
-                <td class="symbol">{{ o.symbol }}</td>
-                <td><span class="side" :class="o.side">{{ o.side === 'buy' ? '买' : '卖' }}</span></td>
-                <td>{{ o.type === 'limit' ? '限价' : '市价' }}</td>
-                <td>{{ o.amount }}</td>
-                <td>${{ toLocale(o.price) }}</td>
-                <td><span class="status" :class="o.status">{{ o.status === 'open' ? '待成交' : '已成交' }}</span></td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-else class="empty">暂无挂单</div>
+    <!-- Open Orders -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">&gt; {{ $t('trading.orders') }}</span>
+        <div class="panel-controls">
+          <button
+            class="filter-btn"
+            :class="{ active: orderFilter === 'all' }"
+            @click="setFilter('all')"
+          >{{ $t('trading.filterAll') }} ({{ activeOrders.length }})</button>
+          <button
+            class="filter-btn"
+            :class="{ active: orderFilter === 'open' }"
+            @click="setFilter('open')"
+          >{{ $t('trading.filterOpen') }} ({{ openCount }})</button>
+          <button
+            class="filter-btn"
+            :class="{ active: orderFilter === 'filled' }"
+            @click="setFilter('filled')"
+          >{{ $t('trading.filterFilled') }} ({{ filledCount }})</button>
+          <button
+            class="filter-btn"
+            :class="{ active: orderFilter === 'cancelled' }"
+            @click="setFilter('cancelled')"
+          >{{ $t('trading.cancelled') }} ({{ cancelledCount }})</button>
         </div>
       </div>
+      <div class="panel-body">
+        <table class="data-table" v-if="filteredOrders.length">
+          <thead>
+            <tr>
+              <th class="col-time">{{ $t('common.time') }}</th>
+              <th class="col-symbol">{{ $t('trading.symbol') }}</th>
+              <th class="col-side">{{ $t('trading.side') }}</th>
+              <th class="col-type">{{ $t('trading.type') }}</th>
+              <th class="col-qty">{{ $t('trading.quantity') }}</th>
+              <th class="col-price">{{ $t('trading.price') }}</th>
+              <th class="col-status">{{ $t('common.status') }}</th>
+              <th class="col-action"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="o in filteredOrders" :key="o.id" class="order-row" :class="{ cancelled: o.status === 'cancelled' }">
+              <td class="col-time">{{ formatTime(o.created_at) }}</td>
+              <td class="col-symbol">{{ o.symbol }}</td>
+              <td class="col-side"><span class="side" :class="o.side">{{ o.side === 'buy' ? $t('trading.buy') : $t('trading.sell') }}</span></td>
+              <td class="col-type">{{ o.type === 'limit' ? $t('trading.limit') : $t('trading.market') }}</td>
+              <td class="col-qty">{{ o.quantity }}</td>
+              <td class="col-price">${{ toLocale(o.price) }}</td>
+              <td class="col-status"><span class="status-tag" :class="o.status">{{ statusLabel(o.status) }}</span></td>
+              <td class="col-action">
+                <button
+                  v-if="o.status === 'open'"
+                  class="cancel-btn"
+                  @click="cancelOrder(o.id)"
+                >✕ {{ $t('trading.cancelOrder') }}</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-else class="empty">{{ $t('trading.noOrders') }}</div>
+      </div>
+    </div>
 
-      <!-- Signal Recommendations -->
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">&gt; 信号推荐</span>
-        </div>
-        <div class="panel-body">
-          <div v-for="s in signals.slice(0, 3)" :key="s.id" class="signal-card">
-            <div class="signal-top">
-              <span class="signal-strategy">{{ s.strategy }}</span>
-              <span class="signal-confidence" :class="confidenceClass(s.confidence)">{{ s.confidence }}%</span>
-            </div>
-            <div class="signal-asset">
-              <span class="symbol">{{ s.asset }}</span>
-              <span class="direction" :class="s.direction">{{ s.direction === 'long' ? '▲ 做多' : '▼ 做空' }}</span>
-            </div>
-            <div class="signal-prices">
-              <span>入场 {{ toLocale(s.price) }}</span>
-              <span>目标 {{ toLocale(s.target) }}</span>
-              <span class="negative">止损 {{ toLocale(s.stopLoss) }}</span>
-            </div>
+    <!-- Signal Recommendations -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">&gt; {{ $t('trading.signalRecommendations') }}</span>
+      </div>
+      <div class="panel-body signals-row">
+        <div v-for="s in signals.slice(0, 3)" :key="s.id" class="signal-card">
+          <div class="signal-top">
+            <span class="signal-strategy">{{ strategyLabel(s.strategy) }}</span>
+            <span class="signal-confidence" :class="confidenceClass(s.confidence)">{{ s.confidence }}%</span>
           </div>
-          <div v-if="!signals.length" class="empty">暂无信号</div>
+          <div class="signal-asset">
+            <span class="symbol">{{ s.asset }}</span>
+            <span class="direction" :class="s.direction">{{ s.direction === 'long' ? '▲ ' + $t('signal.long') : '▼ ' + $t('signal.short') }}</span>
+          </div>
+          <div class="signal-prices">
+            <span>{{ $t('signal.entryPrice') }} {{ toLocale(s.price) }}</span>
+            <span>{{ $t('signal.targetPrice') }} {{ toLocale(s.target) }}</span>
+            <span class="negative">{{ $t('signal.stopLoss') }} {{ toLocale(s.stopLoss) }}</span>
+          </div>
         </div>
+        <div v-if="!signals.length" class="empty">{{ $t('trading.noSignals') }}</div>
       </div>
     </div>
   </div>
@@ -154,17 +186,66 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { positions, signals, userAssets } from '@/data/mockData'
+import { useI18n } from 'vue-i18n'
+import { positions, signals, userAssets, riskSettings, livePositions, liveUserAssets, openOrders as simOrdersData, liveOpenOrders } from '@/data/mockData'
+import { useTradingStore } from '@/stores/trading'
+
+const props = defineProps<{ tradingMode: 'sim' | 'live' }>()
+
+const { t } = useI18n()
+const tradingStore = useTradingStore()
+
+// Seed store with mock orders on first load
+if (tradingStore.orders.length === 0) {
+  simOrdersData.forEach(o => tradingStore.addOrder(o as any))
+  liveOpenOrders.forEach(o => tradingStore.addOrder(o as any))
+}
+
+const activeOrders = computed(() =>
+  tradingStore.orders.filter(o => o.is_simulation === (props.tradingMode === 'sim'))
+)
+
+const strategyLabelKeys: Record<string, string> = {
+  '动量突破': 'strategy.breakout',
+  '均值回归': 'strategy.meanReversion',
+  '趋势跟踪': 'strategy.trend',
+  '网格交易': 'strategy.grid',
+}
+function strategyLabel(strategy: string): string {
+  return t(strategyLabelKeys[strategy] || strategy)
+}
+
+const activePositions = computed(() => props.tradingMode === 'sim' ? positions : livePositions)
+const availableBalance = computed(() => props.tradingMode === 'sim' ? userAssets.available : liveUserAssets.available)
 
 const symbols = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT']
 
-const openOrders = ref([
-  { id: 1, symbol: 'ETH/USDT', side: 'buy', type: 'limit', amount: 10, price: 3150, status: 'open' },
-  { id: 2, symbol: 'SOL/USDT', side: 'sell', type: 'limit', amount: 5, price: 155, status: 'open' },
-  { id: 3, symbol: 'BNB/USDT', side: 'buy', type: 'market', amount: 2, price: 582, status: 'filled' },
-])
+// Order ID counter (used for local additions)
+let nextOrderId = Date.now()
 
-let nextOrderId = 4
+// Order status filter
+const orderFilter = ref<'all' | 'open' | 'filled' | 'cancelled'>('all')
+
+const openCount = computed(() =>
+  activeOrders.value.filter(o => o.status === 'open').length
+)
+const filledCount = computed(() =>
+  activeOrders.value.filter(o => o.status === 'filled').length
+)
+const cancelledCount = computed(() =>
+  activeOrders.value.filter(o => o.status === 'cancelled').length
+)
+
+const filteredOrders = computed(() => {
+  if (orderFilter.value === 'all') return activeOrders.value
+  return activeOrders.value.filter(o => o.status === orderFilter.value)
+})
+
+function formatTime(iso: string): string {
+  if (!iso) return '-'
+  const d = new Date(iso)
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
 
 const orderForm = ref({
   symbol: 'BTC/USDT',
@@ -179,6 +260,19 @@ const estimatedTotal = computed(() => {
   const price = orderForm.value.type === 'market' ? 66000 : orderForm.value.price
   return (price * orderForm.value.amount * orderForm.value.leverage).toFixed(2)
 })
+
+const leverageExceedsLimit = computed(() => {
+  return orderForm.value.leverage > riskSettings.maxLeverage
+})
+
+function statusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    open: t('trading.filterOpen'),
+    filled: t('trading.filterFilled'),
+    cancelled: t('trading.cancelled'),
+  }
+  return labels[status] || status
+}
 
 function toLocale(n: number): string {
   return n.toLocaleString()
@@ -197,18 +291,41 @@ function submitOrder() {
 
   const status = orderForm.value.type === 'market' ? 'filled' : 'open'
 
-  openOrders.value.unshift({
+  tradingStore.addOrder({
     id: nextOrderId++,
     symbol: orderForm.value.symbol,
     side: orderForm.value.side,
     type: orderForm.value.type,
-    amount: orderForm.value.amount,
+    quantity: orderForm.value.amount,
     price: price || 66000,
     status,
-  })
+    is_simulation: props.tradingMode === 'sim',
+    created_at: new Date().toISOString(),
+    user_id: 1,
+  } as any)
 
   orderForm.value.amount = 0
   orderForm.value.price = 0
+}
+
+async function cancelOrder(orderId: number) {
+  try {
+    // Try API first
+    await tradingStore.cancelOrder(orderId).catch(() => {})
+    // If API didn't update the store (e.g. backend unavailable), update locally
+    const order = tradingStore.orders.find(o => o.id === orderId)
+    if (order && order.status !== 'cancelled') {
+      order.status = 'cancelled'
+    }
+  } catch (e: any) {
+    // Last-resort fallback
+    const order = tradingStore.orders.find(o => o.id === orderId)
+    if (order) order.status = 'cancelled'
+  }
+}
+
+function setFilter(filter: 'all' | 'open' | 'filled' | 'cancelled') {
+  orderFilter.value = filter
 }
 </script>
 
@@ -310,6 +427,17 @@ function submitOrder() {
   border-color: var(--success-color);
 }
 
+.leverage-warning {
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: var(--danger-bg, rgba(255, 51, 51, 0.1));
+  border: 1px solid var(--danger-color);
+  color: var(--danger-color);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .order-estimate {
   display: flex;
   justify-content: space-between;
@@ -350,39 +478,63 @@ function submitOrder() {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
+  table-layout: fixed;
 }
 
 .data-table th {
   text-align: left;
-  padding: 8px 10px;
+  padding: 8px 6px;
   border-bottom: 2px solid var(--border-color);
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   color: var(--text-secondary);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .data-table td {
-  padding: 8px 10px;
+  padding: 8px 6px;
   border-bottom: 1px solid var(--border-color);
   color: var(--text-primary);
+  font-size: 12px;
+  vertical-align: middle;
 }
 
-.data-table.compact td,
-.data-table.compact th {
-  padding: 6px 8px;
+/* Column widths */
+.col-time { width: 60px; }
+.col-symbol { width: 100px; }
+.col-side { width: 50px; }
+.col-type { width: 50px; }
+.col-qty { width: 70px; }
+.col-price { width: 100px; }
+.col-status { width: 70px; }
+.col-action { width: 100px; }
+
+.time-cell {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: var(--text-secondary);
 }
 
-.symbol {
+.symbol-cell {
   font-weight: 700;
 }
 
+.order-row.cancelled td {
+  opacity: 0.45;
+}
+.order-row.cancelled .col-symbol {
+  text-decoration: line-through;
+}
+
 .side {
+  display: inline-block;
   padding: 2px 6px;
   font-size: 11px;
   font-weight: 600;
   border: 1px solid currentColor;
+  line-height: 1.2;
 }
 .side.long {
   color: var(--success-color);
@@ -390,17 +542,46 @@ function submitOrder() {
 .side.short {
   color: var(--danger-color);
 }
+.side.buy {
+  color: var(--success-color);
+}
+.side.sell {
+  color: var(--danger-color);
+}
 
-.status {
+.status-tag {
+  display: inline-block;
   padding: 2px 6px;
   font-size: 11px;
   border: 1px solid currentColor;
+  line-height: 1.2;
 }
-.status.open {
+.status-tag.open {
   color: var(--text-primary);
 }
-.status.filled {
+.status-tag.filled {
   color: var(--success-color);
+}
+.status-tag.cancelled {
+  color: var(--text-secondary);
+}
+
+.cancel-btn {
+  padding: 3px 8px;
+  border: 1px solid var(--danger-color);
+  background: transparent;
+  color: var(--danger-color);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  transition: all 0.1s ease;
+}
+.cancel-btn:hover {
+  background: var(--danger-color);
+  color: white;
 }
 
 .positive {
@@ -419,35 +600,24 @@ function submitOrder() {
   font-size: 13px;
 }
 
-/* Split row */
-.split-row {
+/* Signal Cards - horizontal row */
+.signals-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
 }
 
-@media (max-width: 1100px) {
-  .split-row {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Signal Cards */
 .signal-card {
-  padding: 12px;
+  padding: 14px;
   border: 1px solid var(--border-color);
-  margin-bottom: 8px;
   background: var(--bg-secondary);
-}
-.signal-card:last-child {
-  margin-bottom: 0;
 }
 
 .signal-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .signal-strategy {
@@ -477,7 +647,7 @@ function submitOrder() {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .direction {
@@ -493,11 +663,38 @@ function submitOrder() {
 
 .signal-prices {
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  gap: 2px;
   font-size: 11px;
   color: var(--text-secondary);
-}
-.signal-prices span {
   font-family: var(--font-mono, monospace);
+}
+
+@media (max-width: 900px) {
+  .signals-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.filter-btn {
+  padding: 3px 10px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  transition: all 0.1s ease;
+}
+.filter-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.filter-btn.active {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  border-color: var(--text-primary);
 }
 </style>

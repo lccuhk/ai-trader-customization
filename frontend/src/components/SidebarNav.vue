@@ -16,7 +16,7 @@
           @click="navigate(item.key)"
         >
           <span class="nav-icon">{{ item.icon }}</span>
-          <span class="nav-label">{{ item.label }}</span>
+          <span class="nav-label">{{ $t(item.labelKey) }}</span>
         </button>
       </nav>
     </div>
@@ -28,7 +28,7 @@
         @click="navigate('settings')"
       >
         <span class="nav-icon">⚙</span>
-        <span class="nav-label">设置</span>
+        <span class="nav-label">{{ $t('nav.settings') }}</span>
       </button>
     </div>
   </aside>
@@ -49,11 +49,11 @@ const emit = defineEmits<{
 const router = useRouter()
 
 const navItems = [
-  { key: 'trading', icon: '⇄', label: '交易' },
-  { key: 'signals', icon: '⚡', label: '信号广场' },
-  { key: 'strategy', icon: '◈', label: '策略中心' },
-  { key: 'market', icon: '◎', label: '市场情报' },
-  { key: 'risk', icon: '⚠', label: '风控中心' },
+  { key: 'trading', icon: '⇄', labelKey: 'nav.trading' },
+  { key: 'signals', icon: '⚡', labelKey: 'nav.signalsSquare' },
+  { key: 'strategy', icon: '◈', labelKey: 'nav.strategyCenter' },
+  { key: 'market', icon: '◎', labelKey: 'nav.marketIntelligence' },
+  { key: 'risk', icon: '📊', labelKey: 'nav.riskCenter' },
 ]
 
 function navigate(key: string) {
@@ -65,7 +65,7 @@ function navigate(key: string) {
 .sidebar {
   width: 220px;
   min-width: 220px;
-  height: 100vh;
+  min-height: 100vh;
   background: var(--bg-primary);
   border-right: 2px solid var(--border-color);
   display: flex;

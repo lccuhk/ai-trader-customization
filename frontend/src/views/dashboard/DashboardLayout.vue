@@ -8,35 +8,58 @@
       <!-- Top Bar: User Assets -->
       <div class="top-bar">
         <div class="asset-display">
-          <span class="asset-label">总资产</span>
-          <span class="asset-value">${{ toLocale(userAssets.totalValue) }}</span>
+          <span class="asset-label">{{ $t('portfolio.totalAssets') }}</span>
+          <span class="asset-value">${{ toLocale(headerAssets.totalValue) }}</span>
           <span class="asset-detail">
-            可用 ${{ toLocale(userAssets.available) }}
-            <span v-if="userAssets.unrealizedPnL >= 0" class="positive">+${{ toLocale(userAssets.unrealizedPnL) }}</span>
-            <span v-else class="negative">-${{ toLocale(Math.abs(userAssets.unrealizedPnL)) }}</span>
+            {{ $t('trading.available') }} ${{ toLocale(headerAssets.available) }}
+            <span v-if="headerAssets.unrealizedPnL >= 0" class="positive">+${{ toLocale(headerAssets.unrealizedPnL) }}</span>
+            <span v-else class="negative">-${{ toLocale(Math.abs(headerAssets.unrealizedPnL)) }}</span>
           </span>
         </div>
         <div class="top-bar-right">
-          <span class="sim-badge">模拟</span>
-          <button class="logout-btn" @click="handleLogout">退出</button>
+          <div class="mode-switch">
+            <button
+              class="mode-switch-btn"
+              :class="{ active: tradingMode === 'sim' }"
+              @click="tradingMode = 'sim'"
+            >{{ $t('trading.simulation') }}</button>
+            <button
+              class="mode-switch-btn live"
+              :class="{ active: tradingMode === 'live' }"
+              @click="tradingMode = 'live'"
+            >{{ $t('trading.real') }}</button>
+          </div>
+          <button class="logout-btn" @click="showLogoutConfirm = true">{{ $t('nav.logout') }}</button>
+        </div>
+      </div>
+
+      <!-- Logout Confirmation Dialog -->
+      <div v-if="showLogoutConfirm" class="dialog-overlay" @click="showLogoutConfirm = false">
+        <div class="dialog-box" @click.stop>
+          <div class="dialog-title">{{ $t('common.confirm') }}</div>
+          <div class="dialog-body">{{ $t('auth.confirmLogout') }}</div>
+          <div class="dialog-actions">
+            <button class="dialog-btn cancel" @click="showLogoutConfirm = false">{{ $t('common.cancel') }}</button>
+            <button class="dialog-btn confirm" @click="handleLogout">{{ $t('nav.logout') }}</button>
+          </div>
         </div>
       </div>
 
       <!-- Main Content -->
       <main class="main-area">
-        <TradingHub v-if="activeNav === 'trading'" />
+        <TradingHub v-if="activeNav === 'trading'" :trading-mode="tradingMode" />
         <SignalSquare v-if="activeNav === 'signals'" />
         <StrategyCenter v-if="activeNav === 'strategy'" />
         <MarketIntelligence v-if="activeNav === 'market'" />
-        <RiskCenter v-if="activeNav === 'risk'" />
+        <RiskCenter v-if="activeNav === 'risk'" v-model:tradingMode="tradingMode" />
         <SettingsPage v-if="activeNav === 'settings'" />
       </main>
 
       <!-- Bottom Status Bar -->
       <div class="status-bar">
-        <span class="status-item">连接: <span class="connected">已连接</span></span>
-        <span class="status-item">最后更新: {{ lastUpdate }}</span>
-        <span class="status-item">模式: 模拟交易</span>
+        <span class="status-item">{{ $t('common.connected') }}: <span class="connected">●</span></span>
+        <span class="status-item">{{ $t('common.lastUpdate') }}: {{ lastUpdate }}</span>
+        <span class="status-item">{{ $t('common.mode') }}: {{ tradingMode === 'sim' ? $t('common.simMode') : $t('common.liveMode') }}</span>
       </div>
     </div>
 
@@ -49,12 +72,12 @@
     </button>
 
     <!-- AI Chat Sidebar -->
-    <AIChatSidebar :visible="showAIChat" @close="showAIChat = false" />
+    <AIChatSidebar :visible="showAIChat" :trading-mode="tradingMode" @close="showAIChat = false" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import SidebarNav from '@/components/SidebarNav.vue'
 import QuickInfoPanel from '@/components/QuickInfoPanel.vue'
@@ -65,19 +88,28 @@ import StrategyCenter from './StrategyCenter.vue'
 import MarketIntelligence from './MarketIntelligence.vue'
 import RiskCenter from './RiskCenter.vue'
 import SettingsPage from './SettingsPage.vue'
-import { userAssets } from '@/data/mockData'
+import { userAssets, liveUserAssets } from '@/data/mockData'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
 const activeNav = ref('trading')
 const showAIChat = ref(false)
+const showLogoutConfirm = ref(false)
 const lastUpdate = ref(new Date().toLocaleTimeString())
+const tradingMode = ref<'sim' | 'live'>('sim')
+
+const headerAssets = computed(() =>
+  tradingMode.value === 'sim' ? userAssets : liveUserAssets
+)
 
 function toLocale(n: number): string {
   return n.toLocaleString()
 }
 
 function handleLogout() {
-  localStorage.removeItem('auth_token')
+  const userStore = useUserStore()
+  userStore.logout()
+  showLogoutConfirm.value = false
   router.push('/login')
 }
 </script>
@@ -150,12 +182,38 @@ function handleLogout() {
   gap: 12px;
 }
 
-.sim-badge {
-  padding: 2px 10px;
+.mode-switch {
+  display: flex;
+  gap: 0;
+  border: 2px solid var(--border-color);
+}
+
+.mode-switch-btn {
+  padding: 4px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 600;
-  border: 2px solid var(--success-color);
-  color: var(--success-color);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  transition: all 0.1s ease;
+}
+.mode-switch-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.mode-switch-btn.active {
+  background: var(--success-color);
+  color: white;
+}
+.mode-switch-btn.live.active {
+  background: var(--danger-color);
+  color: white;
+}
+.mode-switch-btn + .mode-switch-btn {
+  border-left: 2px solid var(--border-color);
 }
 
 .logout-btn {
@@ -229,5 +287,72 @@ function handleLogout() {
   font-size: 16px;
   font-weight: 700;
   font-family: var(--font-mono, monospace);
+}
+
+/* Logout Confirmation Dialog */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dialog-box {
+  background: var(--bg-primary);
+  border: 2px solid var(--border-color);
+  width: 360px;
+  padding: 24px;
+  box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.15);
+}
+
+.dialog-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  letter-spacing: 0.03em;
+}
+
+.dialog-body {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.dialog-btn {
+  padding: 8px 20px;
+  border: 2px solid var(--border-color);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  transition: all 0.1s ease;
+}
+.dialog-btn.cancel {
+  background: transparent;
+  color: var(--text-primary);
+}
+.dialog-btn.cancel:hover {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+}
+.dialog-btn.confirm {
+  background: var(--danger-color);
+  border-color: var(--danger-color);
+  color: white;
+}
+.dialog-btn.confirm:hover {
+  background: transparent;
+  color: var(--danger-color);
 }
 </style>

@@ -8,15 +8,47 @@
       <div class="info-section">
         <div class="section-header">
           <span class="section-icon">📊</span>
-          <span class="section-title">市场情绪</span>
+          <span class="section-title">{{ $t('market.sentiment') }}</span>
         </div>
         <div class="sentiment-display">
           <div class="sentiment-score" :class="sentimentLevelClass">
             {{ data.marketSentiment.score }}
           </div>
           <div class="sentiment-details">
-            <span class="sentiment-level" :class="sentimentLevelClass">{{ data.marketSentiment.level }}</span>
-            <span class="sentiment-trend">{{ data.marketSentiment.trend }} →</span>
+            <span class="sentiment-level" :class="sentimentLevelClass">{{ $t('market.' + data.marketSentiment.level) }}</span>
+            <span class="sentiment-trend">{{ $t('market.' + data.marketSentiment.trend) }} →</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <div class="section-header">
+          <span class="section-icon">💹</span>
+          <span class="section-title">{{ $t('market.marketQuotes') }}</span>
+        </div>
+        <div class="quotes-list">
+          <div v-for="q in data.quotes" :key="q.symbol" class="quote-item">
+            <span class="quote-symbol">{{ q.symbol.replace('/USDT', '') }}</span>
+            <span class="quote-price">${{ formatQuotePrice(q.price) }}</span>
+            <span class="quote-change" :class="q.change24h >= 0 ? 'positive' : 'negative'">
+              {{ q.change24h >= 0 ? '+' : '' }}{{ q.change24h }}%
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <div class="section-header">
+          <span class="section-icon">🌍</span>
+          <span class="section-title">{{ $t('market.indicators') }}</span>
+        </div>
+        <div class="indicators-list">
+          <div v-for="ind in data.economicIndicators" :key="ind.nameKey" class="indicator-item">
+            <span class="indicator-name">{{ $t(ind.nameKey) }}</span>
+            <span class="indicator-value">{{ ind.value }}</span>
+            <span class="indicator-change" :class="ind.change.startsWith('+') ? 'positive' : 'negative'">
+              {{ ind.change }}
+            </span>
           </div>
         </div>
       </div>
@@ -24,7 +56,7 @@
       <div class="info-section">
         <div class="section-header">
           <span class="section-icon">⚠</span>
-          <span class="section-title">当前预警</span>
+          <span class="section-title">{{ $t('risk.activeWarnings') }}</span>
         </div>
         <div class="alerts-list">
           <div
@@ -34,7 +66,7 @@
             :class="alert.type"
           >
             <span class="alert-dot">●</span>
-            <span class="alert-text">{{ alert.message }}</span>
+            <span class="alert-text">{{ $t(alert.messageKey) }}</span>
           </div>
         </div>
       </div>
@@ -42,10 +74,10 @@
       <div class="info-section">
         <div class="section-header">
           <span class="section-icon">🤖</span>
-          <span class="section-title">AI 建议</span>
+          <span class="section-title">{{ $t('ai.suggestion') }}</span>
         </div>
         <div class="ai-one-liner">
-          {{ data.aiOneLiner }}
+          {{ $t(data.aiOneLinerKey) }}
         </div>
       </div>
     </div>
@@ -54,10 +86,19 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { quickInfo } from '@/data/mockData'
+import { quickInfo, marketQuotes, economicIndicators } from '@/data/mockData'
 
 const isCollapsed = ref(false)
-const data = quickInfo
+const data = {
+  ...quickInfo,
+  quotes: marketQuotes,
+  economicIndicators,
+}
+
+function formatQuotePrice(price: number): string {
+  if (price >= 1) return price.toLocaleString()
+  return price.toFixed(4)
+}
 
 const sentimentLevelClass = computed(() => {
   const score = data.marketSentiment.score
@@ -73,7 +114,7 @@ const sentimentLevelClass = computed(() => {
 .quick-info {
   width: 280px;
   min-width: 280px;
-  height: 100vh;
+  min-height: 100vh;
   background: var(--bg-primary);
   border-left: 2px solid var(--border-color);
   display: flex;
@@ -251,5 +292,89 @@ const sentimentLevelClass = computed(() => {
   line-height: 1.6;
   color: var(--text-primary);
   border-left: 3px solid var(--text-primary);
+}
+
+/* Market Quotes */
+.quotes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quote-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg-secondary);
+  font-size: 12px;
+}
+
+.quote-symbol {
+  font-weight: 700;
+  color: var(--text-primary);
+  width: 36px;
+  flex-shrink: 0;
+}
+
+.quote-price {
+  flex: 1;
+  color: var(--text-primary);
+  font-family: var(--font-mono, monospace);
+  text-align: right;
+}
+
+.quote-change {
+  font-weight: 600;
+  font-family: var(--font-mono, monospace);
+  width: 60px;
+  text-align: right;
+}
+.quote-change.positive {
+  color: var(--success-color);
+}
+.quote-change.negative {
+  color: var(--danger-color);
+}
+
+/* Economic Indicators */
+.indicators-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.indicator-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg-secondary);
+  font-size: 12px;
+}
+
+.indicator-name {
+  flex: 1;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.indicator-value {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-mono, monospace);
+}
+
+.indicator-change {
+  font-weight: 600;
+  font-family: var(--font-mono, monospace);
+  width: 50px;
+  text-align: right;
+}
+.indicator-change.positive {
+  color: var(--success-color);
+}
+.indicator-change.negative {
+  color: var(--danger-color);
 }
 </style>

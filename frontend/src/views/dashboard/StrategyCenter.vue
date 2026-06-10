@@ -1,23 +1,23 @@
 <template>
   <div class="strategy-center">
-    <div class="page-title">&gt; 策略中心</div>
+    <div class="page-title">&gt; {{ $t('nav.strategyCenter') }}</div>
 
     <!-- My Strategies -->
     <div class="panel">
       <div class="panel-header">
-        <span class="panel-title">我的策略</span>
-        <button class="create-btn" @click="showCreateModal = true">+ 新建</button>
+        <span class="panel-title">{{ $t('strategy.myStrategies') }}</span>
+        <button class="create-btn" @click="showCreateModal = true">+ {{ $t('strategy.newStrategy') }}</button>
       </div>
       <div class="panel-body">
         <table class="data-table" v-if="strategies.length">
           <thead>
             <tr>
-              <th>名称</th>
-              <th>类型</th>
-              <th>状态</th>
-              <th>收益率</th>
-              <th>夏普比率</th>
-              <th>操作</th>
+              <th>{{ $t('strategy.strategyName') }}</th>
+              <th>{{ $t('strategy.type') }}</th>
+              <th>{{ $t('strategy.status') }}</th>
+              <th>{{ $t('strategy.returnRate') }}</th>
+              <th>{{ $t('strategy.sharpeRatio') }}</th>
+              <th>{{ $t('strategy.operations') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -26,7 +26,7 @@
               <td class="strategy-type">{{ s.type || '—' }}</td>
               <td>
                 <span class="status" :class="s.status">
-                  {{ s.status === 'active' ? '运行中' : '已暂停' }}
+                  {{ s.status === 'active' ? $t('strategy.active') : $t('strategy.paused') }}
                 </span>
               </td>
               <td :class="s.lastReturn >= 0 ? 'positive' : 'negative'">
@@ -36,24 +36,105 @@
               <td>
                 <div class="action-group">
                   <button class="action-btn" @click="toggleStrategy(s.id)">
-                    {{ s.status === 'active' ? '暂停' : '启动' }}
+                    {{ s.status === 'active' ? $t('strategy.pause') : $t('strategy.run') }}
                   </button>
                   <button class="action-btn delete" @click="deleteStrategy(s.id)">
-                    删除
+                    {{ $t('common.delete') }}
                   </button>
                 </div>
               </td>
             </tr>
           </tbody>
         </table>
-        <div v-else class="empty">暂无策略，点击"+ 新建"创建你的第一个策略</div>
+        <div v-else class="empty">{{ $t('strategy.noStrategies') }}</div>
+      </div>
+    </div>
+
+    <!-- Simulated Trading Dashboard -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">&gt; {{ $t('strategy.simulatedDashboard') }}</span>
+        <span class="sim-badge">{{ $t('strategy.simLabel') }}</span>
+      </div>
+      <div class="panel-body">
+        <!-- Summary Metrics -->
+        <div class="sim-metrics">
+          <div class="metric-card">
+            <div class="metric-label">{{ $t('strategy.totalReturn') }}</div>
+            <div class="metric-value positive">{{ sim.totalReturn }}%</div>
+            <div class="metric-sub">{{ $t('strategy.startBalance') }} ${{ toLocale(sim.startBalance) }}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">{{ $t('strategy.currentEquity') }}</div>
+            <div class="metric-value">${{ toLocale(sim.currentBalance) }}</div>
+            <div class="metric-sub" :class="sim.totalReturn >= 0 ? 'positive' : 'negative'">
+              +${{ toLocale(sim.currentBalance - sim.startBalance) }}
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">{{ $t('strategy.winRate') }}</div>
+            <div class="metric-value">{{ sim.winRate }}%</div>
+            <div class="metric-sub">{{ $t('strategy.totalTrades') }} {{ sim.totalTrades }}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">{{ $t('strategy.sharpeRatio') }}</div>
+            <div class="metric-value">{{ sim.sharpe.toFixed(2) }}</div>
+            <div class="metric-sub">{{ $t('strategy.maxDrawdown') }} {{ sim.maxDrawdown }}%</div>
+          </div>
+        </div>
+
+        <!-- Equity Curve (inline SVG) -->
+        <div class="equity-section">
+          <div class="section-label">{{ $t('strategy.equityCurve') }}</div>
+          <svg class="equity-chart" :viewBox="`0 0 ${eqPoints.length - 1} 100`" preserveAspectRatio="none">
+            <polyline
+              :points="eqPoints"
+              fill="none"
+              stroke="var(--success-color)"
+              stroke-width="2"
+            />
+          </svg>
+          <div class="equity-labels">
+            <span>{{ equityDates[0] }}</span>
+            <span>${{ toLocale(sim.startBalance) }}</span>
+            <span>{{ equityDates[equityDates.length - 1] }}</span>
+            <span>${{ toLocale(sim.currentBalance) }}</span>
+          </div>
+        </div>
+
+        <!-- Recent Simulated Trades -->
+        <div class="section-label">{{ $t('strategy.recentSimTrades') }}</div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>{{ $t('trading.symbol') }}</th>
+              <th>{{ $t('trading.side') }}</th>
+              <th>{{ $t('strategy.entry') }}</th>
+              <th>{{ $t('strategy.exit') }}</th>
+              <th>{{ $t('trading.pnl') }}</th>
+              <th>{{ $t('strategy.returnRate') }}</th>
+              <th>{{ $t('common.time') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="t in simTrades" :key="t.id">
+              <td class="symbol">{{ t.symbol }}</td>
+              <td><span class="side" :class="t.side">{{ t.side === 'long' ? $t('signal.long') : $t('signal.short') }}</span></td>
+              <td class="mono">${{ toLocale(t.entryPrice) }}</td>
+              <td class="mono">${{ toLocale(t.exitPrice) }}</td>
+              <td :class="t.pnl >= 0 ? 'positive' : 'negative'">{{ t.pnl >= 0 ? '+' : '' }}${{ toLocale(t.pnl) }}</td>
+              <td :class="t.pnlPercent >= 0 ? 'positive' : 'negative'">{{ t.pnlPercent >= 0 ? '+' : '' }}{{ t.pnlPercent.toFixed(2) }}%</td>
+              <td class="mono time">{{ t.exitTime }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
     <!-- Strategy Templates -->
     <div class="panel">
       <div class="panel-header">
-        <span class="panel-title">策略模板</span>
+        <span class="panel-title">{{ $t('strategy.templates') }}</span>
       </div>
       <div class="panel-body">
         <div class="templates-grid">
@@ -63,7 +144,7 @@
               <span class="tag">{{ t.difficulty }}</span>
               <span class="tag">{{ t.marketType }}</span>
             </div>
-            <button class="use-btn" @click="useTemplate(t)">使用模板</button>
+            <button class="use-btn" @click="useTemplate(t)">{{ $t('strategy.useTemplate') }}</button>
           </div>
         </div>
       </div>
@@ -74,41 +155,41 @@
       <div v-if="showCreateModal" class="modal-overlay" @click.self="showCreateModal = false">
         <div class="modal-panel">
           <div class="modal-header">
-            <span class="modal-title">&gt; 新建策略</span>
+            <span class="modal-title">&gt; {{ $t('strategy.newStrategy') }}</span>
             <button class="modal-close" @click="showCreateModal = false">✕</button>
           </div>
           <div class="modal-body">
             <div class="form-group">
-              <label>策略名称</label>
+              <label>{{ $t('strategy.strategyName') }}</label>
               <input
                 v-model="newStrategy.name"
                 type="text"
-                placeholder="输入策略名称..."
+                :placeholder="$t('strategy.strategyNamePlaceholder')"
                 class="form-input"
               />
             </div>
             <div class="form-row">
               <div class="form-group">
-                <label>策略类型</label>
+                <label>{{ $t('strategy.strategyType') }}</label>
                 <select v-model="newStrategy.type" class="form-input">
-                  <option value="趋势跟踪">趋势跟踪</option>
-                  <option value="网格交易">网格交易</option>
-                  <option value="动量突破">动量突破</option>
-                  <option value="均值回归">均值回归</option>
-                  <option value="统计套利">统计套利</option>
+                  <option value="趋势跟踪">{{ $t('strategy.trend') }}</option>
+                  <option value="网格交易">{{ $t('strategy.grid') }}</option>
+                  <option value="动量突破">{{ $t('strategy.breakout') }}</option>
+                  <option value="均值回归">{{ $t('strategy.meanReversion') }}</option>
+                  <option value="统计套利">{{ $t('strategy.arbitrage') }}</option>
                 </select>
               </div>
               <div class="form-group">
-                <label>风险等级</label>
+                <label>{{ $t('strategy.riskLevel') }}</label>
                 <select v-model="newStrategy.riskLevel" class="form-input">
-                  <option value="低">低 (保守)</option>
-                  <option value="中">中 (稳健)</option>
-                  <option value="高">高 (激进)</option>
+                  <option value="低">{{ $t('common.low') }} ({{ $t('strategy.conservative') }})</option>
+                  <option value="中">{{ $t('common.medium') }} ({{ $t('strategy.moderate') }})</option>
+                  <option value="高">{{ $t('common.high') }} ({{ $t('strategy.aggressive') }})</option>
                 </select>
               </div>
             </div>
             <div class="form-group">
-              <label>初始资金分配 ($)</label>
+              <label>{{ $t('strategy.initialCapital') }} ($)</label>
               <input
                 v-model.number="newStrategy.capital"
                 type="number"
@@ -119,7 +200,7 @@
               />
             </div>
             <div class="form-group">
-              <label>交易标的</label>
+              <label>{{ $t('strategy.symbols') }}</label>
               <div class="asset-toggles">
                 <button
                   v-for="sym in availableSymbols"
@@ -132,8 +213,8 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button class="modal-btn cancel" @click="showCreateModal = false">取消</button>
-            <button class="modal-btn confirm" :disabled="!newStrategy.name.trim()" @click="createStrategy">创建策略</button>
+            <button class="modal-btn cancel" @click="showCreateModal = false">{{ $t('common.cancel') }}</button>
+            <button class="modal-btn confirm" :disabled="!newStrategy.name.trim()" @click="createStrategy">{{ $t('strategy.createStrategy') }}</button>
           </div>
         </div>
       </div>
@@ -142,8 +223,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import { myStrategies, strategyTemplates } from '@/data/mockData'
+import { ref, reactive, computed } from 'vue'
+import { myStrategies, strategyTemplates, simulatedOverview, simulatedEquityCurve, simulatedTrades } from '@/data/mockData'
 
 const showCreateModal = ref(false)
 const availableSymbols = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT']
@@ -171,7 +252,6 @@ function toggleSymbol(sym: string) {
 
 function createStrategy() {
   if (!newStrategy.name.trim()) return
-  // Generate a random return between -5 and +15 for mock
   const mockReturn = Math.round((Math.random() * 20 - 5) * 10) / 10
   const mockSharpe = Math.round((Math.random() * 2 + 0.5) * 100) / 100
 
@@ -184,7 +264,6 @@ function createStrategy() {
     sharpe: mockSharpe,
   })
 
-  // Reset form
   newStrategy.name = ''
   newStrategy.type = '趋势跟踪'
   newStrategy.riskLevel = '中'
@@ -201,7 +280,8 @@ function toggleStrategy(id: number) {
 }
 
 function deleteStrategy(id: number) {
-  if (confirm(`确定要删除策略 "${strategies.value.find(s => s.id === id)?.name}" 吗？`)) {
+  const name = strategies.value.find(s => s.id === id)?.name
+  if (confirm(`确定要删除策略 "${name}" 吗？`)) {
     strategies.value = strategies.value.filter(s => s.id !== id)
   }
 }
@@ -210,6 +290,29 @@ function useTemplate(t: typeof strategyTemplates[0]) {
   newStrategy.name = t.name
   newStrategy.type = t.name.replace('模板', '').trim()
   showCreateModal.value = true
+}
+
+// Simulated dashboard data
+const sim = simulatedOverview
+const simTrades = simulatedTrades
+
+const equityDates = computed(() => {
+  return simulatedEquityCurve.map(d => d.date)
+})
+
+const eqPoints = computed(() => {
+  const values = simulatedEquityCurve.map(d => d.value)
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const range = max - min || 1
+  return values.map((v, i) => {
+    const y = 100 - ((v - min) / range) * 80 - 10
+    return `${i},${y}`
+  }).join(' ')
+})
+
+function toLocale(n: number): string {
+  return n.toLocaleString()
 }
 </script>
 
@@ -314,17 +417,24 @@ function useTemplate(t: typeof strategyTemplates[0]) {
   color: var(--success-color);
   font-weight: 600;
 }
+
 .negative {
   color: var(--danger-color);
   font-weight: 600;
 }
 
+.action-group {
+  display: flex;
+  gap: 6px;
+}
+
 .action-btn {
   padding: 4px 10px;
-  border: 1px solid var(--border-color);
+  border: 2px solid var(--border-color);
   background: transparent;
   color: var(--text-primary);
   font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
 }
 .action-btn:hover {
@@ -332,41 +442,108 @@ function useTemplate(t: typeof strategyTemplates[0]) {
   color: var(--bg-primary);
 }
 .action-btn.delete {
-  color: var(--danger-color);
   border-color: var(--danger-color);
+  color: var(--danger-color);
 }
 .action-btn.delete:hover {
   background: var(--danger-color);
   color: white;
 }
 
-.action-group {
-  display: flex;
-  gap: 4px;
+/* Sim Dashboard */
+.sim-badge {
+  padding: 2px 8px;
+  border: 1px solid var(--info-color);
+  color: var(--info-color);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-.empty {
+.sim-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.metric-card {
+  border: 2px solid var(--border-color);
+  padding: 16px;
   text-align: center;
-  padding: 32px;
-  color: var(--text-secondary);
-  font-size: 13px;
 }
 
+.metric-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.metric-value {
+  font-size: 24px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-primary);
+}
+
+.metric-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  font-family: var(--font-mono, monospace);
+}
+
+.metric-sub.positive {
+  color: var(--success-color);
+}
+.metric-sub.negative {
+  color: var(--danger-color);
+}
+
+/* Equity Curve */
+.equity-section {
+  margin-bottom: 20px;
+}
+
+.section-label {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.equity-chart {
+  width: 100%;
+  height: 120px;
+  border: 2px solid var(--border-color);
+  background: var(--bg-primary);
+}
+
+.equity-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  font-family: var(--font-mono, monospace);
+}
+
+/* Templates */
 .templates-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 12px;
 }
 
 .template-card {
-  padding: 16px;
   border: 2px solid var(--border-color);
-  background: var(--bg-secondary);
-  transition: all 0.1s ease;
-}
-.template-card:hover {
-  transform: translate(-2px, -2px);
-  box-shadow: 3px 3px 0 var(--border-color);
+  padding: 16px;
+  text-align: center;
 }
 
 .template-name {
@@ -378,40 +555,37 @@ function useTemplate(t: typeof strategyTemplates[0]) {
 .template-tags {
   display: flex;
   gap: 6px;
+  justify-content: center;
   margin-bottom: 12px;
 }
 
 .tag {
   padding: 2px 8px;
-  font-size: 10px;
   border: 1px solid var(--border-color);
+  font-size: 10px;
   color: var(--text-secondary);
+  letter-spacing: 0.03em;
 }
 
 .use-btn {
-  width: 100%;
-  padding: 8px;
-  border: 2px solid var(--border-color);
+  padding: 6px 16px;
+  border: 2px solid var(--success-color);
   background: transparent;
-  color: var(--text-primary);
+  color: var(--success-color);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  text-transform: uppercase;
 }
 .use-btn:hover {
-  background: var(--text-primary);
-  color: var(--bg-primary);
+  background: var(--success-color);
+  color: white;
 }
 
-/* ===== Modal ===== */
+/* Modal */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.6);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -420,19 +594,19 @@ function useTemplate(t: typeof strategyTemplates[0]) {
 
 .modal-panel {
   width: 520px;
-  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
   background: var(--bg-primary);
   border: 2px solid var(--border-color);
-  box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.4);
+  box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.3);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 20px;
+  padding: 16px 20px;
   border-bottom: 2px solid var(--border-color);
-  background: var(--bg-secondary);
 }
 
 .modal-title {
@@ -442,16 +616,13 @@ function useTemplate(t: typeof strategyTemplates[0]) {
 }
 
 .modal-close {
-  background: none;
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-  font-size: 14px;
-  cursor: pointer;
-  padding: 2px 8px;
-}
-.modal-close:hover {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--border-color);
+  background: transparent;
   color: var(--text-primary);
-  background: var(--bg-primary);
+  cursor: pointer;
+  font-size: 14px;
 }
 
 .modal-body {
@@ -472,13 +643,13 @@ function useTemplate(t: typeof strategyTemplates[0]) {
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
 }
 
 .form-input {
-  padding: 8px 10px;
+  padding: 8px 12px;
   border: 2px solid var(--border-color);
-  background: var(--bg-secondary);
+  background: var(--bg-primary);
   color: var(--text-primary);
   font-size: 13px;
   outline: none;
@@ -500,55 +671,83 @@ function useTemplate(t: typeof strategyTemplates[0]) {
 }
 
 .asset-toggle {
-  padding: 6px 12px;
+  padding: 6px 14px;
   border: 2px solid var(--border-color);
   background: transparent;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
-.asset-toggle:hover {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-}
 .asset-toggle.selected {
-  background: var(--text-primary);
-  color: var(--bg-primary);
-  border-color: var(--text-primary);
+  border-color: var(--success-color);
+  color: var(--success-color);
+  background: rgba(0, 255, 65, 0.08);
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  padding: 14px 20px;
+  padding: 16px 20px;
   border-top: 2px solid var(--border-color);
-  background: var(--bg-secondary);
 }
 
 .modal-btn {
   padding: 8px 20px;
   border: 2px solid var(--border-color);
+  background: transparent;
+  color: var(--text-primary);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
-.modal-btn.cancel {
-  background: transparent;
-  color: var(--text-primary);
+.modal-btn.confirm {
+  background: var(--success-color);
+  border-color: var(--success-color);
+  color: white;
+}
+.modal-btn.confirm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 .modal-btn.cancel:hover {
   background: var(--text-primary);
   color: var(--bg-primary);
 }
-.modal-btn.confirm {
-  background: var(--success-color);
-  color: white;
+
+.empty {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.mono {
+  font-family: var(--font-mono, monospace);
+}
+
+.time {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.side {
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid currentColor;
+}
+.side.long {
+  color: var(--success-color);
   border-color: var(--success-color);
 }
-.modal-btn.confirm:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+.side.short {
+  color: var(--danger-color);
+  border-color: var(--danger-color);
+}
+
+.symbol {
+  font-weight: 700;
 }
 </style>

@@ -831,4 +831,8 @@ export interface QuickSettings {
   compactMode: boolean
   showMarketNews: boolean
   language: string
+  tradeAlerts: boolean
+  riskAlerts: boolean
+  signalAlerts: boolean
+  autoStopLoss: boolean
 }

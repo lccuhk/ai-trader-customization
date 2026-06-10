@@ -1,6 +1,6 @@
 <template>
   <div class="market-intelligence">
-    <div class="page-title">&gt; 市场情报</div>
+    <div class="page-title">&gt; {{ $t('market.title') }}</div>
 
     <div class="tabs">
       <button
@@ -10,20 +10,20 @@
         :class="{ active: activeTab === tab.key }"
         @click="activeTab = tab.key"
       >
-        {{ tab.label }}
+        {{ $t(tab.label) }}
       </button>
     </div>
 
     <!-- Quotes -->
     <div v-if="activeTab === 'quotes'" class="panel">
       <div class="panel-header">
-        <span class="panel-title">&gt; 实时行情</span>
+        <span class="panel-title">&gt; {{ $t('market.quotes') }}</span>
         <div class="search-box">
           <input
             v-model="searchQuery"
             type="text"
             class="search-input"
-            placeholder="搜索标的..."
+            :placeholder="$t('market.searchSymbol')"
           />
           <span v-if="searchQuery" class="search-clear" @click="searchQuery = ''">✕</span>
         </div>
@@ -33,11 +33,11 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th>标的</th>
-              <th>价格</th>
-              <th>24h 涨跌</th>
-              <th>成交量</th>
-              <th>详情</th>
+              <th>{{ $t('trading.symbol') }}</th>
+              <th>{{ $t('trading.price') }}</th>
+              <th>{{ $t('trading.change24h') }}</th>
+              <th>{{ $t('trading.volume') }}</th>
+              <th>{{ $t('market.detail') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -60,7 +60,7 @@
             </tr>
           </tbody>
         </table>
-        <div v-if="!filteredQuotes.length" class="empty">未找到匹配的标的</div>
+        <div v-if="!filteredQuotes.length" class="empty">{{ $t('common.noData') }}</div>
 
         <!-- Technical Indicator Detail Panel with SVG Charts -->
         <transition name="expand">
@@ -68,15 +68,64 @@
             <div class="detail-header">
               <div class="detail-header-left">
                 <span class="detail-symbol">{{ selectedSymbol }}</span>
-                <span class="detail-label">技术面分析</span>
+                <span class="detail-label">{{ $t('market.technicalAnalysis') }}</span>
               </div>
               <span class="detail-rec" :class="recClass">{{ indicators.recommendation }}</span>
+            </div>
+
+            <!-- K-line (Candlestick) Chart — full width, above the indicator grid -->
+            <div class="kl-chart-card">
+              <div class="chart-title">{{ $t('market.kline') }}</div>
+              <svg :viewBox="'0 0 400 150'" class="chart-svg">
+                <defs>
+                  <linearGradient id="klGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="var(--success-color)" stop-opacity="0.08" />
+                    <stop offset="100%" stop-color="var(--success-color)" stop-opacity="0.01" />
+                  </linearGradient>
+                </defs>
+                <!-- Grid lines -->
+                <line v-for="(y, i) in [25, 50, 75, 100, 125]" :key="'grid'+i"
+                  x1="10" :y1="y" x2="390" :y2="y"
+                  stroke="var(--border-color)" stroke-width="0.3" stroke-dasharray="2,3" />
+                <!-- Price line connecting close prices -->
+                <polyline
+                  v-if="candleRenders.length"
+                  :points="candleRenders.map(c => `${c.cx},${c.closeY}`).join(' ')"
+                  fill="none" stroke="var(--info-color)" stroke-width="0.8" stroke-dasharray="2,2" opacity="0.5" />
+                <!-- Candles (wick + body) -->
+                <template v-for="c in candleRenders" :key="c.cx">
+                  <!-- High-Low wick -->
+                  <line
+                    :x1="c.cx" :y1="c.highY"
+                    :x2="c.cx" :y2="c.lowY"
+                    :stroke="c.isBullish ? 'var(--success-color)' : 'var(--danger-color)'"
+                    stroke-width="1.2" />
+                  <!-- Open-Close body -->
+                  <rect
+                    :x="c.cx - 6"
+                    :y="c.bodyTop"
+                    :width="12"
+                    :height="Math.max(c.bodyHeight, 1.5)"
+                    :fill="c.isBullish ? 'var(--success-color)' : 'var(--danger-color)'"
+                    :opacity="c.bodyHeight < 1.5 ? 0.6 : 1" />
+                </template>
+              </svg>
+              <div class="kl-footer">
+                <span class="kl-legend"><span class="kl-dot bullish"></span> {{ $t('market.bullish') }}</span>
+                <span class="kl-legend"><span class="kl-dot bearish"></span> {{ $t('market.bearish') }}</span>
+                <span class="kl-legend" v-if="candles.length >= 2">
+                  {{ $t('market.latest') }}: ${{ toLocale(candles[candles.length - 1].close) }}
+                  <span :class="candles[candles.length - 1].close >= candles[candles.length - 2].close ? 'positive' : 'negative'">
+                    ({{ candles[candles.length - 1].close >= candles[candles.length - 2].close ? '+' : '' }}{{ ((candles[candles.length - 1].close / candles[candles.length - 2].close - 1) * 100).toFixed(2) }}%)
+                  </span>
+                </span>
+              </div>
             </div>
 
             <div class="chart-grid">
               <!-- RSI Gauge Chart -->
               <div class="chart-card">
-                <div class="chart-title">RSI (14) — {{ indicators.rsi.toFixed(1) }}</div>
+                <div class="chart-title">{{ $t('market.rsi') }} — {{ indicators.rsi.toFixed(1) }}</div>
                 <svg :viewBox="'0 0 200 60'" class="chart-svg">
                   <!-- Background bar -->
                   <rect x="10" y="20" width="180" height="20" rx="2" fill="var(--bg-primary)" stroke="var(--border-color)" stroke-width="1" />
@@ -97,14 +146,14 @@
                   />
                 </svg>
                 <div class="chart-footer">
-                  <span>超卖区 &lt; 30</span>
-                  <span>超买区 &gt; 70</span>
+                  <span>{{ $t('market.oversold') }}</span>
+                  <span>{{ $t('market.overbought') }}</span>
                 </div>
               </div>
 
               <!-- MACD Chart -->
               <div class="chart-card">
-                <div class="chart-title">MACD</div>
+                <div class="chart-title">{{ $t('market.macd') }}</div>
                 <svg :viewBox="'0 0 200 60'" class="chart-svg">
                   <!-- Baseline -->
                   <line x1="0" y1="30" x2="200" y2="30" stroke="var(--border-color)" stroke-width="0.5" />
@@ -125,7 +174,7 @@
 
               <!-- MA Cross Chart -->
               <div class="chart-card">
-                <div class="chart-title">移动平均线</div>
+                <div class="chart-title">{{ $t('market.ma') }}</div>
                 <svg :viewBox="'0 0 200 60'" class="chart-svg">
                   <!-- Grid lines -->
                   <line x1="0" y1="15" x2="200" y2="15" stroke="var(--border-color)" stroke-width="0.3" />
@@ -138,7 +187,7 @@
                   <!-- MA(50) line -->
                   <path d="M20,42 L55,42 L90,38 L125,36 L180,36" stroke="#ff9900" stroke-width="1.5" fill="none" stroke-dasharray="2,3" />
                   <!-- Legend -->
-                  <text x="10" y="56" font-size="7" fill="var(--text-primary)">价格</text>
+                  <text x="10" y="56" font-size="7" fill="var(--text-primary)">{{ $t('trading.price') }}</text>
                   <text x="70" y="56" font-size="7" fill="var(--info-color)">MA20 {{ toLocale(indicators.ma20) }}</text>
                   <text x="140" y="56" font-size="7" fill="#ff9900">MA50 {{ toLocale(indicators.ma50) }}</text>
                 </svg>
@@ -146,7 +195,7 @@
 
               <!-- Bollinger Bands Chart -->
               <div class="chart-card">
-                <div class="chart-title">布林带</div>
+                <div class="chart-title">{{ $t('market.bollinger') }}</div>
                 <svg :viewBox="'0 0 200 60'" class="chart-svg">
                   <!-- Bollinger band area -->
                   <defs>
@@ -166,9 +215,9 @@
                   <!-- Price dot -->
                   <circle :cx="bollingerDotX" cy="26" r="3" fill="var(--text-primary)" stroke="var(--bg-primary)" stroke-width="1" />
                   <!-- Legend -->
-                  <text x="10" y="56" font-size="7" fill="var(--text-secondary)">上轨 {{ toLocale(indicators.bollinger.upper) }}</text>
-                  <text x="105" y="56" font-size="7" fill="var(--info-color)">中 {{ toLocale(indicators.bollinger.middle) }}</text>
-                  <text x="170" y="56" font-size="7" fill="var(--text-secondary)">下 {{ toLocale(indicators.bollinger.lower) }}</text>
+                  <text x="10" y="56" font-size="7" fill="var(--text-secondary)">{{ $t('market.upper') }} {{ toLocale(indicators.bollinger.upper) }}</text>
+                  <text x="105" y="56" font-size="7" fill="var(--info-color)">{{ $t('market.middle') }} {{ toLocale(indicators.bollinger.middle) }}</text>
+                  <text x="170" y="56" font-size="7" fill="var(--text-secondary)">{{ $t('market.lower') }} {{ toLocale(indicators.bollinger.lower) }}</text>
                 </svg>
               </div>
             </div>
@@ -176,15 +225,15 @@
             <!-- Text summary below charts -->
             <div class="detail-summary">
               <div class="summary-item">
-                <span class="summary-key">24h 最高/最低</span>
+                <span class="summary-key">{{ $t('market.high24h') }} / {{ $t('market.low24h') }}</span>
                 <span class="summary-val">${{ toLocale(indicators.high24h) }} / ${{ toLocale(indicators.low24h) }}</span>
               </div>
               <div class="summary-item">
-                <span class="summary-key">成交量 24h</span>
+                <span class="summary-key">{{ $t('market.volume24h') }}</span>
                 <span class="summary-val">{{ indicators.volume24h }}</span>
               </div>
               <div class="summary-item">
-                <span class="summary-key">市值</span>
+                <span class="summary-key">{{ $t('market.marketCap') }}</span>
                 <span class="summary-val">{{ indicators.marketCap }}</span>
               </div>
             </div>
@@ -195,31 +244,31 @@
 
     <!-- News -->
     <div v-if="activeTab === 'news'" class="panel">
-      <div class="panel-header"><span class="panel-title">&gt; 市场新闻</span></div>
+      <div class="panel-header"><span class="panel-title">&gt; {{ $t('market.news') }}</span></div>
       <div class="panel-body">
         <div v-for="n in news" :key="n.id" class="news-item">
           <div class="news-importance" :class="n.importance">
-            {{ n.importance === 'high' ? '重要' : n.importance === 'medium' ? '一般' : '低' }}
+            {{ n.importance === 'high' ? $t('market.impactHigh') : n.importance === 'medium' ? $t('market.impactMedium') : $t('market.impactLow') }}
           </div>
           <div class="news-content">
             <div class="news-title">{{ n.title }}</div>
             <div class="news-time">{{ n.time }}</div>
           </div>
         </div>
-        <div v-if="!news.length" class="empty">暂无新闻</div>
+        <div v-if="!news.length" class="empty">{{ $t('common.noData') }}</div>
       </div>
     </div>
 
     <!-- Events -->
     <div v-if="activeTab === 'events'" class="panel">
-      <div class="panel-header"><span class="panel-title">&gt; 事件日历</span></div>
+      <div class="panel-header"><span class="panel-title">&gt; {{ $t('market.events') }}</span></div>
       <div class="panel-body">
         <table class="data-table">
           <thead>
             <tr>
-              <th>日期</th>
-              <th>事件</th>
-              <th>重要性</th>
+              <th>{{ $t('common.date') }}</th>
+              <th>{{ $t('common.event') }}</th>
+              <th>{{ $t('common.importance') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -228,7 +277,7 @@
               <td>{{ e.event }}</td>
               <td>
                 <span class="impact" :class="e.impact">
-                  {{ e.impact === 'high' ? '高' : e.impact === 'medium' ? '中' : '低' }}
+                  {{ e.impact === 'high' ? $t('market.impactHigh') : e.impact === 'medium' ? $t('market.impactMedium') : $t('market.impactLow') }}
                 </span>
               </td>
             </tr>
@@ -239,19 +288,19 @@
 
     <!-- Indicators -->
     <div v-if="activeTab === 'indicators'" class="panel">
-      <div class="panel-header"><span class="panel-title">&gt; 经济指标</span></div>
+      <div class="panel-header"><span class="panel-title">&gt; {{ $t('market.indicators') }}</span></div>
       <div class="panel-body">
         <table class="data-table">
           <thead>
             <tr>
-              <th>指标</th>
-              <th>当前值</th>
-              <th>变动</th>
+              <th>{{ $t('common.indicator') }}</th>
+              <th>{{ $t('common.currentValue') }}</th>
+              <th>{{ $t('common.change') }}</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="ind in economicIndicators" :key="ind.name">
-              <td class="indicator-name">{{ ind.name }}</td>
+            <tr v-for="ind in economicIndicators" :key="ind.nameKey">
+              <td class="indicator-name">{{ $t(ind.nameKey) }}</td>
               <td class="value">{{ ind.value }}</td>
               <td :class="ind.change.startsWith('+') ? 'positive' : 'negative'">
                 {{ ind.change }}
@@ -265,7 +314,7 @@
     <!-- Gainers / Losers -->
     <div v-if="activeTab === 'gainers'" class="gainers-losers">
       <div class="panel">
-        <div class="panel-header"><span class="panel-title">&gt; 涨幅榜</span></div>
+        <div class="panel-header"><span class="panel-title">&gt; {{ $t('market.gainers') }}</span></div>
         <div class="panel-body">
           <div v-for="g in gainersLosers.gainers" :key="g.symbol" class="gl-item">
             <span class="symbol">{{ g.symbol }}</span>
@@ -274,7 +323,7 @@
         </div>
       </div>
       <div class="panel">
-        <div class="panel-header"><span class="panel-title">&gt; 跌幅榜</span></div>
+        <div class="panel-header"><span class="panel-title">&gt; {{ $t('market.losers') }}</span></div>
         <div class="panel-body">
           <div v-for="l in gainersLosers.losers" :key="l.symbol" class="gl-item">
             <span class="symbol">{{ l.symbol }}</span>
@@ -294,16 +343,33 @@ import {
   technicalIndicators,
 } from '@/data/mockData'
 
+interface Candle {
+  open: number
+  high: number
+  low: number
+  close: number
+}
+
+interface CandleRender {
+  cx: number
+  highY: number
+  lowY: number
+  closeY: number
+  bodyTop: number
+  bodyHeight: number
+  isBullish: boolean
+}
+
 const activeTab = ref('quotes')
 const searchQuery = ref('')
 const selectedSymbol = ref<string | null>(null)
 
 const tabs = [
-  { key: 'quotes', label: '行情' },
-  { key: 'news', label: '新闻' },
-  { key: 'events', label: '事件日历' },
-  { key: 'indicators', label: '经济指标' },
-  { key: 'gainers', label: '涨跌榜' },
+  { key: 'quotes', label: 'market.quotes' },
+  { key: 'news', label: 'market.news' },
+  { key: 'events', label: 'market.events' },
+  { key: 'indicators', label: 'market.indicators' },
+  { key: 'gainers', label: 'market.gainers' },
 ]
 
 const filteredQuotes = computed(() => {
@@ -378,6 +444,69 @@ const recClass = computed(() => {
   if (rec === '持有' || rec === '观望') return 'rec-hold'
   if (rec === '卖出') return 'rec-sell'
   return ''
+})
+
+// ===== Candlestick (K-line) Chart =====
+
+function generateCandlesticks(basePrice: number, count = 20): Candle[] {
+  const candles: Candle[] = []
+  let price = basePrice * 0.97 // start 3% below current
+  for (let i = 0; i < count; i++) {
+    const open = price
+    // Slight upward bias for visual variety, with random walk
+    const change = (Math.random() - 0.46) * basePrice * 0.025
+    const close = open + change
+    const halfRange = Math.abs(close - open) + Math.random() * basePrice * 0.012
+    const high = Math.max(open, close) + Math.random() * halfRange * 0.5
+    const low = Math.min(open, close) - Math.random() * halfRange * 0.5
+    candles.push({ open, high, low, close })
+    price = close
+  }
+  return candles
+}
+
+const candles = computed<Candle[]>(() => {
+  const symbol = selectedSymbol.value
+  if (!symbol) return []
+  const quote = marketQuotes.find(q => q.symbol === symbol)
+  if (!quote) return []
+  return generateCandlesticks(quote.price)
+})
+
+const candleRenders = computed<CandleRender[]>(() => {
+  const data = candles.value
+  if (!data.length) return []
+
+  const prices = data.flatMap(c => [c.high, c.low])
+  const minPrice = Math.min(...prices)
+  const maxPrice = Math.max(...prices)
+  const range = maxPrice - minPrice || 1
+  const pad = range * 0.06
+
+  const chartTop = 14
+  const chartBottom = 140
+  const chartHeight = chartBottom - chartTop
+
+  return data.map((c, i) => {
+    const cx = 18 + i * 19 // center X for each candle
+    const scaleY = (price: number) =>
+      chartBottom - ((price - minPrice + pad) / (range + 2 * pad)) * chartHeight
+
+    const openY = scaleY(c.open)
+    const closeY = scaleY(c.close)
+    const highY = scaleY(c.high)
+    const lowY = scaleY(c.low)
+
+    return {
+      cx,
+      highY,
+      lowY,
+      closeY,
+      bodyTop: Math.min(openY, closeY),
+      bodyHeight: Math.abs(closeY - openY),
+      isBullish: c.close >= c.open,
+    }
+  })
 })
 </script>
 
@@ -746,6 +875,40 @@ const recClass = computed(() => {
 .summary-val {
   font-weight: 600;
   color: var(--text-primary);
+}
+
+/* K-line (Candlestick) Chart */
+.kl-chart-card {
+  margin: 16px 16px 0;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  padding: 12px;
+}
+
+.kl-footer {
+  display: flex;
+  gap: 20px;
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.kl-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kl-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+}
+.kl-dot.bullish {
+  background: var(--success-color);
+}
+.kl-dot.bearish {
+  background: var(--danger-color);
 }
 
 /* Expand transition */

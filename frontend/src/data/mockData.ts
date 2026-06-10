@@ -14,26 +14,61 @@ export const positions = [
   { symbol: 'SOL/USDT', side: 'long', size: 15, entryPrice: 145, markPrice: 148, pnl: 45, pnlPercent: 2.07 },
 ]
 
-export const openOrders = [
-  { id: 1, symbol: 'BTC/USDT', side: 'buy', type: 'limit', price: 64000, amount: 0.1, status: 'open', time: '2026-06-08 10:30' },
-  { id: 2, symbol: 'ETH/USDT', side: 'sell', type: 'limit', price: 3300, amount: 1.0, status: 'open', time: '2026-06-08 09:15' },
-  { id: 3, symbol: 'SOL/USDT', side: 'buy', type: 'market', price: 148, amount: 5, status: 'filled', time: '2026-06-08 08:00' },
+export const livePositions = [
+  { symbol: 'BTC/USDT', side: 'long', size: 0.15, entryPrice: 65800, markPrice: 66200, pnl: 60, pnlPercent: 0.61 },
+  { symbol: 'ETH/USDT', side: 'long', size: 1.5, entryPrice: 3120, markPrice: 3150, pnl: 45, pnlPercent: 0.96 },
+  { symbol: 'SOL/USDT', side: 'short', size: 8, entryPrice: 150, markPrice: 148, pnl: 16, pnlPercent: 1.33 },
 ]
 
+export const openOrders = [
+  { id: 1, symbol: 'BTC/USDT', side: 'buy', type: 'limit', price: 64000, quantity: 0.1, status: 'open', is_simulation: true, created_at: '2026-06-08T10:30:00Z' },
+  { id: 2, symbol: 'ETH/USDT', side: 'sell', type: 'limit', price: 3300, quantity: 1.0, status: 'open', is_simulation: true, created_at: '2026-06-08T09:15:00Z' },
+  { id: 3, symbol: 'SOL/USDT', side: 'buy', type: 'market', price: 148, quantity: 5, status: 'filled', is_simulation: true, created_at: '2026-06-08T08:00:00Z' },
+]
+
+export const liveOpenOrders = [
+  { id: 101, symbol: 'BTC/USDT', side: 'buy', type: 'limit', price: 65500, quantity: 0.05, status: 'open', is_simulation: false, created_at: '2026-06-10T08:30:00Z' },
+  { id: 102, symbol: 'ETH/USDT', side: 'sell', type: 'limit', price: 3200, quantity: 0.8, status: 'open', is_simulation: false, created_at: '2026-06-10T07:45:00Z' },
+  { id: 103, symbol: 'SOL/USDT', side: 'buy', type: 'market', price: 147, quantity: 3, status: 'filled', is_simulation: false, created_at: '2026-06-09T14:20:00Z' },
+  { id: 104, symbol: 'XRP/USDT', side: 'sell', type: 'limit', price: 0.55, quantity: 200, status: 'open', is_simulation: false, created_at: '2026-06-09T11:00:00Z' },
+]
+
+// Strategy list shared across signals
+export const strategyList = [
+  { key: '动量突破', label: '动量突破' },
+  { key: '均值回归', label: '均值回归' },
+  { key: '趋势跟踪', label: '趋势跟踪' },
+  { key: '网格交易', label: '网格交易' },
+]
+
+// Expanded signals with many-to-many: one asset appears under multiple strategies,
+// and one strategy covers multiple assets. Each signal now includes a winRate.
 export const signals = [
-  { id: 1, strategy: '动量突破', asset: 'BTC/USDT', direction: 'long', confidence: 87, price: 66100, target: 67500, stopLoss: 65500 },
-  { id: 2, strategy: '均值回归', asset: 'ETH/USDT', direction: 'short', confidence: 72, price: 3150, target: 3080, stopLoss: 3190 },
-  { id: 3, strategy: '趋势跟踪', asset: 'SOL/USDT', direction: 'long', confidence: 81, price: 148, target: 155, stopLoss: 144 },
-  { id: 4, strategy: '网格交易', asset: 'BNB/USDT', direction: 'long', confidence: 65, price: 580, target: 600, stopLoss: 565 },
+  // ——— 动量突破 ———
+  { id: 1,  strategy: '动量突破', asset: 'BTC/USDT', direction: 'long',  confidence: 87, price: 66100, target: 67500, stopLoss: 65500, winRate: 72 },
+  { id: 2,  strategy: '动量突破', asset: 'SOL/USDT', direction: 'long',  confidence: 81, price: 148,   target: 155,   stopLoss: 144,   winRate: 68 },
+  { id: 3,  strategy: '动量突破', asset: 'AVAX/USDT', direction: 'long', confidence: 74, price: 38.5,  target: 42,    stopLoss: 36.8,  winRate: 65 },
+  // ——— 均值回归 ———
+  { id: 4,  strategy: '均值回归', asset: 'ETH/USDT', direction: 'short', confidence: 72, price: 3150,  target: 3080,  stopLoss: 3190,  winRate: 63 },
+  { id: 5,  strategy: '均值回归', asset: 'XRP/USDT', direction: 'short', confidence: 68, price: 0.52,  target: 0.48,  stopLoss: 0.54,  winRate: 60 },
+  { id: 6,  strategy: '均值回归', asset: 'DOT/USDT', direction: 'short', confidence: 65, price: 7.2,   target: 6.8,   stopLoss: 7.45,  winRate: 58 },
+  // ——— 趋势跟踪 ———
+  { id: 7,  strategy: '趋势跟踪', asset: 'SOL/USDT', direction: 'long',  confidence: 81, price: 148,   target: 158,   stopLoss: 142,   winRate: 76 },
+  { id: 8,  strategy: '趋势跟踪', asset: 'BTC/USDT', direction: 'long',  confidence: 79, price: 66100, target: 68500, stopLoss: 65200, winRate: 74 },
+  { id: 9,  strategy: '趋势跟踪', asset: 'LINK/USDT', direction: 'long', confidence: 73, price: 14.2,  target: 15.8,  stopLoss: 13.5,  winRate: 70 },
+  // ——— 网格交易 ———
+  { id: 10, strategy: '网格交易', asset: 'BNB/USDT', direction: 'long',  confidence: 65, price: 580,   target: 600,   stopLoss: 565,   winRate: 62 },
+  { id: 11, strategy: '网格交易', asset: 'ETH/USDT', direction: 'long',  confidence: 62, price: 3150,  target: 3220,  stopLoss: 3100,  winRate: 60 },
+  { id: 12, strategy: '网格交易', asset: 'MATIC/USDT', direction: 'long',confidence: 58, price: 0.72,  target: 0.78,  stopLoss: 0.69,  winRate: 55 },
 ]
 
 export const quickInfo = {
-  marketSentiment: { score: 62, level: '贪婪', trend: '上升' },
+  marketSentiment: { score: 62, level: 'greed', trend: 'up' },
   alerts: [
-    { id: 1, type: 'warning' as const, message: 'BTC 接近止损价 65500' },
-    { id: 2, type: 'info' as const, message: 'ETH 盈利已超过 1.5%' },
+    { id: 1, type: 'warning' as const, messageKey: 'quickInfo.btcStopAlert' },
+    { id: 2, type: 'info' as const, messageKey: 'quickInfo.ethProfitAlert' },
   ],
-  aiOneLiner: '当前波动率上升，建议降低杠杆至 2x，关注 BTC 66000 支撑位',
+  aiOneLinerKey: 'quickInfo.volatilitySuggestion',
 }
 
 export const marketQuotes = [
@@ -59,10 +94,10 @@ export const events = [
 ]
 
 export const economicIndicators = [
-  { name: '美元指数', value: '104.2', change: '-0.3%' },
-  { name: '10年期美债收益率', value: '4.25%', change: '-0.05%' },
-  { name: '标普500', value: '5420', change: '+0.8%' },
-  { name: '黄金 (XAU/USD)', value: '2345', change: '+0.5%' },
+  { nameKey: 'market.dxy', value: '104.2', change: '-0.3%' },
+  { nameKey: 'market.ust10y', value: '4.25%', change: '-0.05%' },
+  { nameKey: 'market.sp500', value: '5420', change: '+0.8%' },
+  { nameKey: 'market.gold', value: '2345', change: '+0.5%' },
 ]
 
 export const gainersLosers = {
@@ -119,6 +154,61 @@ export const portfolioHistory = [
   { date: '2026-06-05', value: 127400 },
   { date: '2026-06-06', value: 127900 },
   { date: '2026-06-07', value: 128200 },
+]
+
+// Live trading data (for 实盘 mode)
+export const liveUserAssets = {
+  totalValue: 52340.80,
+  available: 48390.80,
+  margin: 1950.00,
+  unrealizedPnL: 123.50,
+  currency: 'USD',
+}
+
+// Live trading data (for 实盘 mode in RiskCenter)
+export const livePortfolioOverview = {
+  totalBalance: 50000.00,
+  totalValue: 52340.80,
+  totalPnl: 2340.80,
+  totalPnlPercent: 4.68,
+  winRate: 58.2,
+  totalTrades: 93,
+  profitFactor: 1.45,
+  dailyPnl: 185.50,
+  weeklyPnl: 890.30,
+  monthlyPnl: 2340.80,
+}
+
+export const livePortfolioPositions = [
+  { symbol: 'BTC/USDT', side: 'long', size: 0.15, entryPrice: 65800, markPrice: 66200, pnl: 60, pnlPercent: 0.61, unrealizedPnl: 60, margin: 987.00, leverage: 5 },
+  { symbol: 'ETH/USDT', side: 'long', size: 1.5, entryPrice: 3120, markPrice: 3150, pnl: 45, pnlPercent: 0.96, unrealizedPnl: 45, margin: 468.00, leverage: 3 },
+  { symbol: 'SOL/USDT', side: 'short', size: 8, entryPrice: 150, markPrice: 148, pnl: 16, pnlPercent: 1.33, unrealizedPnl: 16, margin: 400.00, leverage: 2 },
+  { symbol: 'BNB/USDT', side: 'long', size: 0.5, entryPrice: 575, markPrice: 580, pnl: 2.50, pnlPercent: 0.87, unrealizedPnl: 2.50, margin: 95.00, leverage: 3 },
+]
+
+export const livePortfolioHistory = [
+  { date: '2026-06-01', value: 50000 },
+  { date: '2026-06-02', value: 50150 },
+  { date: '2026-06-03', value: 50480 },
+  { date: '2026-06-04', value: 50800 },
+  { date: '2026-06-05', value: 51120 },
+  { date: '2026-06-06', value: 51500 },
+  { date: '2026-06-07', value: 51850 },
+  { date: '2026-06-08', value: 52010 },
+  { date: '2026-06-09', value: 52180 },
+  { date: '2026-06-10', value: 52340 },
+]
+
+export const liveRiskMetrics = {
+  totalExposure: 1950.00,
+  riskPerTrade: 1.8,
+  currentDrawdown: 1.5,
+  var95: 185.00,
+}
+
+export const liveRiskAlerts = [
+  { id: 1, level: 'info' as const, messageKey: 'risk.alert.lowPosition', messageArgs: {} },
+  { id: 2, level: 'warning' as const, messageKey: 'risk.alert.longProfit', messageArgs: { symbol: 'BTC', pnlPercent: '0.61' } },
 ]
 
 // Technical indicators for market quotes
@@ -196,6 +286,14 @@ export const technicalIndicators: Record<string, {
   },
 }
 
+// Shared risk settings (used by RiskCenter & TradingHub)
+export const riskSettings = {
+  stopLossPercent: 2.5,
+  takeProfitPercent: 5.0,
+  maxLeverage: 3,
+  concentrationLimit: 30,
+}
+
 export const riskMetrics = {
   totalExposure: 8450.32,
   riskPerTrade: 2.5,
@@ -204,25 +302,63 @@ export const riskMetrics = {
 }
 
 export const riskAlerts = [
-  { id: 1, level: 'warning' as const, message: 'BTC 仓位集中度 45%，超过建议 30%' },
-  { id: 2, level: 'info' as const, message: '今日已实现盈亏: +$342.15' },
-  { id: 3, level: 'danger' as const, message: 'SOL 止损位 144 接近当前价格 148' },
+  { id: 1, level: 'warning' as const, messageKey: 'risk.alert.concentration', messageArgs: { symbol: 'BTC', current: 45, limit: 30 } },
+  { id: 2, level: 'info' as const, messageKey: 'risk.alert.dailyPnl', messageArgs: { value: '+$342.15' } },
+  { id: 3, level: 'danger' as const, messageKey: 'risk.alert.stopLossClose', messageArgs: { symbol: 'SOL', stopLoss: 144, current: 148 } },
+]
+
+// Simulated trading results for Strategy Center (paper trading dashboard)
+export const simulatedOverview = {
+  totalReturn: 8.42,
+  winRate: 62.3,
+  totalTrades: 45,
+  profitFactor: 1.65,
+  maxDrawdown: 4.2,
+  sharpe: 1.35,
+  startBalance: 10000,
+  currentBalance: 10842,
+  monthlyReturn: 3.2,
+  avgTradeReturn: 1.87,
+}
+
+export const simulatedEquityCurve = [
+  { date: '2026-06-01', value: 10000 },
+  { date: '2026-06-02', value: 10050 },
+  { date: '2026-06-03', value: 9980 },
+  { date: '2026-06-04', value: 10120 },
+  { date: '2026-06-05', value: 10250 },
+  { date: '2026-06-06', value: 10380 },
+  { date: '2026-06-07', value: 10500 },
+  { date: '2026-06-08', value: 10620 },
+  { date: '2026-06-09', value: 10750 },
+  { date: '2026-06-10', value: 10842 },
+]
+
+export const simulatedTrades = [
+  { id: 1, symbol: 'BTC/USDT', side: 'long', entryPrice: 65000, exitPrice: 66200, pnl: 300, pnlPercent: 1.85, exitTime: '2026-06-09 14:30' },
+  { id: 2, symbol: 'ETH/USDT', side: 'short', entryPrice: 3200, exitPrice: 3150, pnl: 125, pnlPercent: 1.56, exitTime: '2026-06-08 09:15' },
+  { id: 3, symbol: 'SOL/USDT', side: 'long', entryPrice: 145, exitPrice: 148, pnl: 45, pnlPercent: 2.07, exitTime: '2026-06-07 16:45' },
+  { id: 4, symbol: 'BTC/USDT', side: 'short', entryPrice: 66800, exitPrice: 65800, pnl: -100, pnlPercent: -1.50, exitTime: '2026-06-06 11:00' },
+  { id: 5, symbol: 'LINK/USDT', side: 'long', entryPrice: 14.2, exitPrice: 15.0, pnl: 56, pnlPercent: 5.63, exitTime: '2026-06-05 10:30' },
+  { id: 6, symbol: 'ETH/USDT', side: 'long', entryPrice: 3180, exitPrice: 3220, pnl: 100, pnlPercent: 1.26, exitTime: '2026-06-04 13:00' },
+  { id: 7, symbol: 'SOL/USDT', side: 'short', entryPrice: 152, exitPrice: 148, pnl: 60, pnlPercent: 2.63, exitTime: '2026-06-03 15:20' },
+  { id: 8, symbol: 'AVAX/USDT', side: 'long', entryPrice: 38.5, exitPrice: 37.2, pnl: -52, pnlPercent: -3.38, exitTime: '2026-06-02 10:00' },
 ]
 
 // AI Chat mock responses
 export const aiQuickActions = [
-  { command: '/风险', label: '风险评估' },
-  { command: '/市场', label: '市场分析' },
-  { command: '/信号', label: '当前信号' },
+  { command: '/风险', labelKey: 'ai.chat.quickRisk' },
+  { command: '/市场', labelKey: 'ai.chat.quickMarket' },
+  { command: '/信号', labelKey: 'ai.chat.quickSignal' },
 ]
 
 export const aiWelcomeMessage = {
   role: 'assistant' as const,
-  content: '你好！我是 AI 交易助手。我可以帮你分析市场、评估风险、解读信号。试试下面的快捷按钮吧！',
+  contentKey: 'ai.chat.welcomeContent',
 }
 
-export const aiResponses: Record<string, string> = {
-  '/风险': '📊 **风险评估**\n\n当前账户风险状况：\n- 总敞口: $8,450.32 (67.8%)\n- 单笔风险: 2.5%\n- 最大回撤: 3.2%\n- VaR(95%): $425.00\n\n⚠️ **建议**: BTC 仓位集中度偏高(45%)，建议适当减仓或设置更紧的止损。',
-  '/市场': '📈 **市场分析**\n\n**BTC**: 66200 (+2.3%) — 突破 66000 阻力位，量能配合良好\n**ETH**: 3150 (-0.8%) — 短期回调，3200 为关键压力位\n**SOL**: 148 (+5.2%) — 强势突破，关注 155 目标位\n\n整体情绪偏向贪婪(62)，短期注意回调风险。',
-  '/信号': '🔔 **当前信号**\n\n1. BTC/USDT 动量突破 — 多头 87分 → 入场 66100\n2. ETH/USDT 均值回归 — 空头 72分 → 入场 3150\n3. SOL/USDT 趋势跟踪 — 多头 81分 → 入场 148\n\n建议优先关注 BTC 信号，置信度最高。',
+export const aiResponseKeys: Record<string, string> = {
+  '/风险': 'ai.chat.responseRisk',
+  '/市场': 'ai.chat.responseMarket',
+  '/信号': 'ai.chat.responseSignal',
 }

@@ -75,7 +75,7 @@
           <span class="nav-text">{{ t('nav.portfolio') }}</span>
         </router-link>
 
-        <!-- 风控中心 -->
+        <!-- 交易组合 -->
         <div class="nav-group">
           <button 
             class="nav-item group-toggle" 

@@ -9,12 +9,12 @@
         </div>
       </div>
       <div class="signal-actions">
-        <button 
-          class="action-btn" 
+        <button
+          class="action-btn"
           :class="{ followed: signal.is_following }"
           @click.stop="handleFollow"
         >
-          {{ signal.is_following ? '已关注' : '关注' }}
+          {{ signal.is_following ? $t('signal.following') : $t('signal.follow') }}
         </button>
       </div>
     </div>
@@ -42,7 +42,7 @@
         </span>
       </div>
       <div class="signal-type" :class="signal.message_type">
-        {{ getTypeLabel(signal.message_type) }}
+        {{ $t('signal.' + signal.message_type) }}
       </div>
     </div>
   </div>
@@ -72,17 +72,6 @@ const signalStore = useSignalStore()
 function formatTime(date: string | undefined) {
   if (!date) return ''
   return dayjs(date).fromNow()
-}
-
-function getTypeLabel(type: string | undefined) {
-  const labels: Record<string, string> = {
-    'long': '做多',
-    'short': '做空',
-    'info': '资讯',
-    'alert': '预警',
-    'analysis': '分析'
-  }
-  return labels[type || 'info'] || type
 }
 
 function handleCardClick() {
