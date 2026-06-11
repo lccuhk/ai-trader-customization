@@ -30,20 +30,14 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-class CORSMiddleware:
-    def __init__(self, app):
-        self.app = app
-    def __call__(self, environ, start_response):
-        def _start_response(status, headers, exc_info=None):
-            headers.append(('Access-Control-Allow-Origin', '*'))
-            headers.append(('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS'))
-            headers.append(('Access-Control-Allow-Headers', 'Content-Type, Authorization'))
-            headers.append(('Access-Control-Allow-Credentials', 'true'))
-            headers.append(('X-Debug-MW', 'executed'))
-            return start_response(status, headers, exc_info)
-        return self.app(environ, _start_response)
-
-app.wsgi_app = CORSMiddleware(app.wsgi_app)
+@app.after_request
+def force_cors(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    response.headers['X-Debug-CORS'] = 'ok'
+    return response
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, 'data', 'clawtrader.db')

@@ -18,7 +18,7 @@ import type {
   CreateReplyRequest
 } from '@/types'
 
-const API_BASE_URL = 'https://trading-agent-for-dscourse-backend.onrender.com/api'
+const API_BASE_URL = '/api'
 
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
