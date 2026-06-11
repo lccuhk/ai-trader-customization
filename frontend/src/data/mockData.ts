@@ -43,7 +43,17 @@ export const strategyList = [
 
 // Expanded signals with many-to-many: one asset appears under multiple strategies,
 // and one strategy covers multiple assets. Each signal now includes a winRate.
-export const signals = [
+export const signals: Array<{
+  id: number
+  strategy: string
+  asset: string
+  direction: 'long' | 'short'
+  confidence: number
+  price: number
+  target: number
+  stopLoss: number
+  winRate: number
+}> = [
   // ——— 动量突破 ———
   { id: 1,  strategy: '动量突破', asset: 'BTC/USDT', direction: 'long',  confidence: 87, price: 66100, target: 67500, stopLoss: 65500, winRate: 72 },
   { id: 2,  strategy: '动量突破', asset: 'SOL/USDT', direction: 'long',  confidence: 81, price: 148,   target: 155,   stopLoss: 144,   winRate: 68 },

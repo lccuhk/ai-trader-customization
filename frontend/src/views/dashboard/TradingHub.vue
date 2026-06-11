@@ -274,8 +274,8 @@ function statusLabel(status: string): string {
   return labels[status] || status
 }
 
-function toLocale(n: number): string {
-  return n.toLocaleString()
+function toLocale(n: number | undefined): string {
+  return (n ?? 0).toLocaleString()
 }
 
 function confidenceClass(score: number): string {
