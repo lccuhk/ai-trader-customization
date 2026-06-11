@@ -298,12 +298,20 @@ def init_db():
         
         conn.commit()
         
-        cursor.execute('SELECT COUNT(*) FROM users WHERE email = ?', ('demo@example.com',))
-        if cursor.fetchone()[0] == 0:
+        # Always update demo account password to ensure it's correct
+        cursor.execute('SELECT id, password_hash FROM users WHERE email = ? OR username = ?',
+                      ('demo@example.com', 'demo'))
+        existing = cursor.fetchone()
+        new_hash = _hash_password('demo123456')
+        if existing:
+            if existing[1] != new_hash:
+                cursor.execute('UPDATE users SET password_hash = ?, username = ? WHERE id = ?',
+                             (new_hash, 'demo', existing[0]))
+        else:
             cursor.execute('''
                 INSERT INTO users (email, username, password_hash)
                 VALUES (?, ?, ?)
-            ''', ('demo@example.com', 'demo', _hash_password('demo123456')))
+            ''', ('demo@example.com', 'demo', new_hash))
             
             cursor.execute('SELECT id FROM users WHERE email = ?', ('demo@example.com',))
             user_id = cursor.fetchone()[0]
