@@ -34,19 +34,18 @@ from simulation.engine import simulation_engine
 
 def init_test_account():
     """
-    Initialize a test account if it doesn't exist.
+    Initialize a test account. Update password if account already exists.
     """
     from models import User
-    
+    from sqlalchemy import or_
+
     db = get_db_session()
     try:
-        # Check if test user exists
         existing_user = db.query(User).filter(
-            User.username == 'demo'
+            or_(User.username == 'demo', User.email == 'demo@example.com', User.email == 'demo')
         ).first()
-        
+
         if not existing_user:
-            # Create test user
             test_user = User(
                 username='demo',
                 email='demo@example.com',
@@ -56,10 +55,18 @@ def init_test_account():
             db.add(test_user)
             db.commit()
             print("[OK] Test account created successfully!")
-            print(f"   Username: demo")
-            print(f"   Password: demo123456")
         else:
-            print(f"[INFO] Test account already exists")
+            # Always update password hash to ensure PBKDF2 format
+            existing_user.password_hash = hash_password('demo123456')
+            if not existing_user.username:
+                existing_user.username = 'demo'
+            if not existing_user.display_name:
+                existing_user.display_name = 'Demo User'
+            db.commit()
+            print("[OK] Test account password updated!")
+
+        print("   Username: demo")
+        print("   Password: demo123456")
     except Exception as e:
         db.rollback()
         print(f"[WARN] Error creating test account: {str(e)}")
