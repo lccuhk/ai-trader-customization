@@ -27,43 +27,31 @@ except ImportError:
 from functools import wraps
 
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 
 app = Flask(__name__)
 
-ALLOWED_ORIGINS = [
-    'http://localhost:8080',
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:5173',
-    'https://trading-agent-for-dscourse.surge.sh',
-    'https://trading-agent-backend.deta.app',
-    'https://trading-agent-for-dscourse-backend.onrender.com',
-    'https://ai-trader-customization.vercel.app',
-]
-
-def cors_allowed(origin):
-    if origin in ALLOWED_ORIGINS:
-        return True
-    if re.match(r'^https://.*\.deta\.app$', origin):
-        return True
-    if re.match(r'^https://.*\.deta\.dev$', origin):
-        return True
-    if re.match(r'^https://.*\.onrender\.com$', origin):
-        return True
-    if re.match(r'^https://.*\.vercel\.app$', origin):
-        return True
-    return False
-
-@app.after_request
-def after_request(response):
-    if request.method == 'OPTIONS':
-        response.status_code = 200
-    origin = request.headers.get('Origin', '')
-    if cors_allowed(origin):
-        response.headers.add('Access-Control-Allow-Origin', origin)
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-    return response
+CORS(app, resources={
+    r"/api/*": {
+        "origins": [
+            'http://localhost:8080',
+            'http://localhost:3000',
+            'http://localhost:3001',
+            'http://localhost:5173',
+            'https://trading-agent-for-dscourse.surge.sh',
+            'https://trading-agent-backend.deta.app',
+            'https://trading-agent-for-dscourse-backend.onrender.com',
+            'https://ai-trader-customization.vercel.app',
+            'https://*.vercel.app',
+            'https://*.deta.app',
+            'https://*.deta.dev',
+            'https://*.onrender.com',
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True
+    }
+})
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, 'data', 'clawtrader.db')
@@ -1857,6 +1845,7 @@ def get_email_config():
     })
 
 
+init_db()
+
 if __name__ == '__main__':
-    init_db()
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8001)), debug=False)
