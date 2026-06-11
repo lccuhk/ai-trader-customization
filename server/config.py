@@ -47,7 +47,7 @@ class Settings:
     
     ALLOWED_ORIGINS = os.getenv(
         'ALLOWED_ORIGINS',
-        'https://trading-agent-for-dscourse.surge.sh,http://localhost:3000,http://localhost:8080'
+        'https://trading-agent-for-dscourse.surge.sh,http://localhost:3000,http://localhost:8080,http://localhost:5173,https://ai-trader-customization.vercel.app,https://ai-trader-customization-git-main-lccuhks-projects.vercel.app'
     ).split(',')
     
     TOKEN_EXPIRE_DAYS = int(os.getenv('TOKEN_EXPIRE_DAYS', 30))
