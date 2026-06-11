@@ -31,27 +31,7 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 
-CORS(app, resources={
-    r"/api/*": {
-        "origins": [
-            'http://localhost:8080',
-            'http://localhost:3000',
-            'http://localhost:3001',
-            'http://localhost:5173',
-            'https://trading-agent-for-dscourse.surge.sh',
-            'https://trading-agent-backend.deta.app',
-            'https://trading-agent-for-dscourse-backend.onrender.com',
-            'https://ai-trader-customization.vercel.app',
-            'https://*.vercel.app',
-            'https://*.deta.app',
-            'https://*.deta.dev',
-            'https://*.onrender.com',
-        ],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True
-    }
-})
+CORS(app, supports_credentials=True)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, 'data', 'clawtrader.db')
