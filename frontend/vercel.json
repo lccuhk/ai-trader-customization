@@ -1,12 +1,13 @@
 {
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/:path*",
-      "destination": "https://trading-agent-for-dscourse-backend.onrender.com/api/:path*"
+      "src": "^/api/(.*)$",
+      "dest": "https://trading-agent-for-dscourse-backend.onrender.com/api/$1"
     },
+    { "handle": "filesystem" },
     {
-      "source": "/((?!api).*)",
-      "destination": "/index.html"
+      "src": "^/(.*)$",
+      "dest": "/index.html"
     }
   ]
 }
