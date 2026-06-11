@@ -34,9 +34,11 @@ ALLOWED_ORIGINS = [
     'http://localhost:8080',
     'http://localhost:3000',
     'http://localhost:3001',
+    'http://localhost:5173',
     'https://trading-agent-for-dscourse.surge.sh',
     'https://trading-agent-backend.deta.app',
     'https://trading-agent-for-dscourse-backend.onrender.com',
+    'https://ai-trader-customization.vercel.app',
 ]
 
 def cors_allowed(origin):
@@ -47,6 +49,8 @@ def cors_allowed(origin):
     if re.match(r'^https://.*\.deta\.dev$', origin):
         return True
     if re.match(r'^https://.*\.onrender\.com$', origin):
+        return True
+    if re.match(r'^https://.*\.vercel\.app$', origin):
         return True
     return False
 
