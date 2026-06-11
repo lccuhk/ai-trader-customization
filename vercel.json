@@ -1,8 +1,12 @@
 {
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "https://trading-agent-for-dscourse-backend.onrender.com/api/:path*"
+      "source": "/api/(.*)",
+      "destination": "https://trading-agent-for-dscourse-backend.onrender.com/api/$1"
+    },
+    {
+      "source": "/((?!api).*)",
+      "destination": "/index.html"
     }
   ]
 }
