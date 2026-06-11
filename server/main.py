@@ -1,7 +1,7 @@
-from simple_server import app, init_db
+from app import app, init_db
 
 init_db()
 
 if __name__ == '__main__':
-    import uvicorn
-    uvicorn.run(app, host='0.0.0.0', port=8080)
+    from config import settings
+    app.run(host='0.0.0.0', port=settings.PORT, debug=False)

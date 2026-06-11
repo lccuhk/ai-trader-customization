@@ -55,14 +55,14 @@ def init_test_account():
             )
             db.add(test_user)
             db.commit()
-            print(f"✅ Test account created successfully!")
+            print("[OK] Test account created successfully!")
             print(f"   Username: demo")
             print(f"   Password: demo123456")
         else:
-            print(f"ℹ️  Test account already exists")
+            print(f"[INFO] Test account already exists")
     except Exception as e:
         db.rollback()
-        print(f"⚠️  Error creating test account: {str(e)}")
+        print(f"[WARN] Error creating test account: {str(e)}")
     finally:
         db.close()
 
