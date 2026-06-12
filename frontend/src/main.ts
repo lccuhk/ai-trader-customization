@@ -23,6 +23,12 @@ app.mount('#app')
 
 // 登录后异步初始化（WebSocket 连接等后台任务）
 async function initializeApp() {
+  // Skip auth check on login/register pages - no token validation needed
+  const authPages = ['/login', '/register']
+  if (authPages.includes(window.location.pathname.replace(/\/+$/, ''))) {
+    return
+  }
+
   if (userStore.isLoggedIn) {
     const isValid = await userStore.fetchCurrentUser()
     if (isValid) {
