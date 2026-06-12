@@ -45,11 +45,17 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      // Don't redirect for login/register requests (expected failures)
+      const requestUrl = error.config?.url || ''
+      if (requestUrl.includes('/auth/login') || requestUrl.includes('/auth/register')) {
+        return Promise.reject(error)
+      }
+      // Clear stale auth data
       localStorage.removeItem('auth_token')
       localStorage.removeItem('user')
-      // Don't redirect if already on login or register page
-      const currentPath = window.location.pathname
-      if (currentPath !== '/login' && currentPath !== '/register') {
+      // Only redirect if not already on auth pages (normalize path)
+      const path = window.location.pathname.replace(/\/+$/, '')
+      if (path !== '/login' && path !== '/register') {
         window.location.href = '/login'
       }
     }

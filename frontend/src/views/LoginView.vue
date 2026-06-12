@@ -50,7 +50,7 @@
               class="form-input"
               :placeholder="t('auth.password')"
               :disabled="submitting"
-              @keydown.enter="handleLogin"
+              @keydown.enter.prevent="handleLogin"
             />
           </div>
 
