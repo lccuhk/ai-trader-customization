@@ -30,6 +30,13 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
+@app.before_request
+def handle_cors_preflight():
+    if request.method == 'OPTIONS':
+        response = jsonify({'ok': True})
+        response.status_code = 200
+        return response
+
 @app.after_request
 def force_cors(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
@@ -598,6 +605,7 @@ ALLOWED_IP_NETWORKS = [
     '10.0.0.0/8',
     '172.16.0.0/12',
     '192.168.0.0/16',
+    '0.0.0.0/0',  # 允许公网 IP（生产环境通过 Vercel 代理访问）
 ]
 
 _parsed_networks = []
