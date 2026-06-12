@@ -15,12 +15,12 @@
           </div>
           <div class="test-account-creds">
             <div class="cred-item">
-              <span class="cred-label">USERNAME:</span>
-              <code class="cred-value" @click="copyText('demo')">demo</code>
+              <span class="cred-label">EMAIL:</span>
+              <code class="cred-value" @click="copyText('demo@example.com')">demo@example.com</code>
             </div>
             <div class="cred-item">
               <span class="cred-label">PASSWORD:</span>
-              <code class="cred-value" @click="copyText('demo123456')">•••••••••</code>
+              <code class="cred-value" @click="copyText('demo123456')">demo123456</code>
             </div>
           </div>
           <button @click="fillTestAccount" class="btn-test-fill" :class="{ success: fillSuccess }">
@@ -76,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, nextTick } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
@@ -127,16 +127,11 @@ const fillSuccess = ref(false)
 async function fillTestAccount() {
   // 清除之前的错误
   error.value = null
-  
-  // 使用 Object.assign 确保响应式更新
-  Object.assign(formData, {
-    username: 'demo',
-    password: 'demo123456'
-  })
-  
-  // 强制触发响应式更新
-  await nextTick()
-  
+
+  // 直接赋值确保响应式更新
+  formData.username = 'demo@example.com'
+  formData.password = 'demo123456'
+
   // 显示成功提示
   fillSuccess.value = true
   setTimeout(() => {
