@@ -1863,6 +1863,42 @@ def get_email_config():
     })
 
 
+@app.route('/api/admin/reset-demo', methods=['POST'])
+def reset_demo_password():
+    """Emergency endpoint to reset demo account password."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        new_hash = _hash_password('demo123456')
+
+        cursor.execute('SELECT id, password_hash FROM users WHERE email = ? OR username = ?',
+                      ('demo@example.com', 'demo'))
+        existing = cursor.fetchone()
+
+        if existing:
+            cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?',
+                         (new_hash, existing[0]))
+            conn.commit()
+            conn.close()
+            return jsonify({
+                'success': True,
+                'message': f'Demo password reset. User id={existing[0]}'
+            })
+        else:
+            cursor.execute('''
+                INSERT INTO users (email, username, password_hash, display_name)
+                VALUES (?, ?, ?, ?)
+            ''', ('demo@example.com', 'demo', new_hash, 'Demo User'))
+            conn.commit()
+            conn.close()
+            return jsonify({
+                'success': True,
+                'message': 'Demo account created'
+            })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 init_db()
 
 if __name__ == '__main__':
