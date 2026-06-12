@@ -24,7 +24,7 @@ allowed_origins = [
     'http://localhost:3000',
     'https://trading-agent-for-dscourse.surge.sh',
     'https://trading-agent-backend.deta.app',
-    'https://trading-agent-for-dscourse-backend.onrender.com',
+    'https://ai-trader-customization.onrender.com',
 ]
 
 class RegexCORSMiddleware(CORSMiddleware):

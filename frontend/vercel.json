@@ -2,7 +2,7 @@
   "routes": [
     {
       "src": "^/api/(.*)$",
-      "dest": "https://trading-agent-for-dscourse-backend.onrender.com/api/$1"
+      "dest": "https://ai-trader-customization.onrender.com/api/$1"
     },
     { "handle": "filesystem" },
     {

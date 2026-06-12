@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://trading-agent-for-dscourse-backend.onrender.com/api/:path*"
+      "destination": "https://ai-trader-customization.onrender.com/api/:path*"
     },
     {
       "source": "/:path*",

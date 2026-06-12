@@ -103,7 +103,7 @@ python3 -m http.server 8080
 
 ### 基础 URL
 - 本地: `http://localhost:8001`
-- 生产: `https://trading-agent-for-dscourse-backend.onrender.com`
+- 生产: `https://ai-trader-customization.onrender.com`
 
 ### 认证接口
 
@@ -346,7 +346,7 @@ GET /api/signals/{signal_id}
 2. 点击 "New" → "Web Service"
 3. 连接你的 GitHub 仓库
 4. 配置如下：
-   - **Name**: `trading-agent-for-dscourse-backend`
+   - **Name**: `ai-trader-customization`
    - **Runtime**: Python 3
    - **Build Command**: `pip install -r requirements.txt`
    - **Start Command**: `python main.py`
@@ -402,7 +402,7 @@ ai-trader-customization/
 - `http://localhost:8080`
 - `http://localhost:3000`
 - `https://trading-agent-for-dscourse.surge.sh`
-- `https://trading-agent-for-dscourse-backend.onrender.com`
+- `https://ai-trader-customization.onrender.com`
 - 所有 `*.deta.app` 和 `*.deta.dev` 域名
 - 所有 `*.onrender.com` 域名
 
