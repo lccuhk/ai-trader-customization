@@ -32,7 +32,7 @@ Render 是最适合部署 FastAPI 应用的平台之一，有免费额度。
    - 点击 "New" -> "Web Service"
    - 连接你的 GitHub 仓库
    - 配置如下:
-     - **Name**: `trading-agent-for-dscourse-backend`
+     - **Name**: `ai-trader-customization`
      - **Runtime**: Python 3
      - **Build Command**: `pip install -r requirements.txt`
      - **Start Command**: `uvicorn simple_server:app --host 0.0.0.0 --port $PORT`
@@ -44,7 +44,7 @@ Render 是最适合部署 FastAPI 应用的平台之一，有免费额度。
      - `PORT`: 10000 (Render 会自动设置)
 
 5. **部署完成后**
-   - 你会得到一个 URL，例如: `https://trading-agent-for-dscourse-backend.onrender.com`
+   - 你会得到一个 URL，例如: `https://ai-trader-customization.onrender.com`
    - 更新前端代码中的 API 地址（已配置为这个地址）
 
 ---
@@ -98,7 +98,7 @@ Fly.io 适合部署全球分布的应用。
 2. 登录并创建应用:
    ```bash
    heroku login
-   heroku create trading-agent-for-dscourse-backend
+   heroku create ai-trader-customization
    ```
 
 3. 推送代码:
@@ -112,12 +112,12 @@ Fly.io 适合部署全球分布的应用。
 
 ### 1. 更新前端 API 地址
 
-如果你的后端 URL 不是 `https://trading-agent-for-dscourse-backend.onrender.com`，需要更新前端代码:
+如果你的后端 URL 不是 `https://ai-trader-customization.onrender.com`，需要更新前端代码:
 
 编辑 `AI-Trader/service/frontend/dist/index.html`，找到:
 ```javascript
 if (hostname === 'trading-agent-for-dscourse.surge.sh') {
-    return 'https://trading-agent-for-dscourse-backend.onrender.com';
+    return 'https://ai-trader-customization.onrender.com';
 }
 ```
 

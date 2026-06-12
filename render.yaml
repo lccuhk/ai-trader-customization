@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: trading-agent-for-dscourse-backend
+    name: ai-trader-customization
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
