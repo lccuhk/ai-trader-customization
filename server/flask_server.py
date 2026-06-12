@@ -276,36 +276,8 @@ def init_db():
                 FOREIGN KEY (signal_id) REFERENCES signals (id)
             )
         ''')
-        
+
         conn.commit()
-        
-        # Always update demo account password to ensure it's correct
-        cursor.execute('SELECT id, password_hash FROM users WHERE email = ? OR username = ?',
-                      ('demo@example.com', 'demo'))
-        existing = cursor.fetchone()
-        new_hash = _hash_password('demo123456')
-        if existing:
-            if existing[1] != new_hash:
-                cursor.execute('UPDATE users SET password_hash = ?, username = ? WHERE id = ?',
-                             (new_hash, 'demo', existing[0]))
-        else:
-            cursor.execute('''
-                INSERT INTO users (email, username, password_hash)
-                VALUES (?, ?, ?)
-            ''', ('demo@example.com', 'demo', new_hash))
-            
-            cursor.execute('SELECT id FROM users WHERE email = ?', ('demo@example.com',))
-            user_id = cursor.fetchone()[0]
-            
-            try:
-                cursor.execute('SELECT COUNT(*) FROM user_stats WHERE user_id = ?', (user_id,))
-                if cursor.fetchone()[0] == 0:
-                    cursor.execute('''
-                        INSERT INTO user_stats (user_id, total_trades, winning_trades, total_pnl, win_rate, sharpe_ratio)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                    ''', (user_id, 156, 102, 25430.50, 0.654, 1.85))
-            except:
-                pass
         
         cursor.execute('SELECT COUNT(*) FROM notifications')
         if cursor.fetchone()[0] == 0:
@@ -440,8 +412,60 @@ def init_db():
         conn.commit()
     except Exception as e:
         conn.rollback()
+        print(f"[ERROR] init_db failed: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
     finally:
         conn.close()
+
+    # Force reset demo account password EVERY startup (outside main try-except)
+    _ensure_demo_account()
+
+
+def _ensure_demo_account():
+    """Ensure demo account exists with correct password - always runs."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        new_hash = _hash_password('demo123456')
+
+        cursor.execute('SELECT id, password_hash FROM users WHERE email = ? OR username = ?',
+                      ('demo@example.com', 'demo'))
+        existing = cursor.fetchone()
+
+        if existing:
+            # Always update demo password regardless of current hash
+            cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?',
+                         (new_hash, existing[0]))
+            print(f"[INFO] Demo account password reset (user id={existing[0]})", file=sys.stderr)
+        else:
+            cursor.execute('''
+                INSERT INTO users (email, username, password_hash, display_name)
+                VALUES (?, ?, ?, ?)
+            ''', ('demo@example.com', 'demo', new_hash, 'Demo User'))
+            print("[INFO] Demo account created", file=sys.stderr)
+
+            cursor.execute('SELECT id FROM users WHERE email = ?', ('demo@example.com',))
+            user_id = cursor.fetchone()[0]
+
+            try:
+                cursor.execute('SELECT COUNT(*) FROM user_stats WHERE user_id = ?', (user_id,))
+                if cursor.fetchone()[0] == 0:
+                    cursor.execute('''
+                        INSERT INTO user_stats (user_id, total_trades, winning_trades, total_pnl, win_rate, sharpe_ratio)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (user_id, 156, 102, 25430.50, 0.654, 1.85))
+            except Exception:
+                pass
+
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[ERROR] Failed to ensure demo account: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 _db_write_lock = threading.Lock()
