@@ -1,6 +1,13 @@
-# AI-Trader - 智能交易助手
+# AI-Trader — 智能交易助手
 
-一个功能完整的 AI 交易助手平台，包含 AI 对话、风险控制、市场情报、策略编辑等功能。
+一个功能完整的 AI 交易助手平台，基于 [HKUDS/AI-Trader](https://github.com/HKUDS/AI-Trader) 定制开发，集成了 AI 对话、风险控制、市场情报、策略编辑、信号市场等功能。
+
+## 生产环境
+
+| 组件 | URL | 部署平台 |
+|------|-----|---------|
+| 前端 | https://frontend-six-mu-xqj303z2z3.vercel.app | Vercel |
+| 后端 | https://ai-trader-customization.onrender.com | Render |
 
 ## ✨ 功能特性
 
@@ -8,62 +15,55 @@
 - 多角色 AI 助手（市场分析师、交易教练、投资组合经理、量化研究员）
 - 对话历史记录
 - 快捷提问模板
-- 实时 AI 回复
 
 ### 📊 风险仪表盘
 - 实时风险指标监控（集中度风险、净敞口、最大回撤、胜率、夏普比率）
 - 风险预警系统
 - 仓位计算器
-- 风险设置配置
 
 ### 📰 市场情报中心
 - 实时市场新闻聚合
 - 事件日历
 - 经济指标
 - 市场情绪分析
-- 涨跌榜
 
 ### 💡 策略编辑器
 - 策略创建和管理
 - 策略模板库
 - 回测引擎
-- 代码编辑器
 
 ### 👤 用户系统
 - 用户注册和登录
 - 个人资料管理
-- 用户统计数据
 - 偏好设置
 
 ### 🔔 通知系统
 - 实时通知中心
-- 邮件配置
 - Webhook 集成
-- 通知设置
 
 ### 📈 信号市场
 - 实时交易信号流
 - 多类型信号（交易操作、分析报告、讨论）
 - 多市场覆盖（美股、加密货币、预测市场）
-- 信号筛选（按类型、按市场）
 - 信号质量评分
-- 互动统计（回复数、参与人数）
 
 ## 🛠️ 技术栈
 
 ### 后端
-- **Flask 3.0.0** - Python Web 框架
-- **SQLite** - 数据库
-- **Python 3.9+** - 编程语言
+- **Flask 3.0.0** — Python Web 框架
+- **SQLite** — 数据库
+- **Python 3.9+**
 
 ### 前端
-- **原生 HTML/CSS/JavaScript** - 前端技术
-- **Chart.js** - 图表库
-- **Tailwind CSS** - CSS 框架（通过 CDN）
+- **Vue 3** + **Vite** + **TypeScript**
+- **Pinia** — 状态管理
+- **Vue Router** — 路由
+- **Axios** — HTTP 请求
+- **Chart.js** — 图表
 
 ### 部署
-- **Render.com** - 后端部署
-- **Surge.sh** - 前端部署
+- **Render.com** — 后端
+- **Vercel** — 前端
 
 ## 🚀 快速开始
 
@@ -75,29 +75,31 @@ git clone https://github.com/lccuhk/ai-trader-customization.git
 cd ai-trader-customization
 ```
 
-#### 2. 安装依赖
+#### 2. 安装后端依赖
 ```bash
 pip install -r requirements.txt
 ```
 
-#### 3. 启动后端服务
+#### 3. 启动后端
 ```bash
-python main.py
+cd server && python flask_server.py
 ```
+后端服务将在 http://localhost:8001 启动。
 
-后端服务将在 http://localhost:8001 启动
-
-#### 4. 启动前端服务
+#### 4. 启动前端
 ```bash
-cd ../AI-Trader/service/frontend/dist
-python3 -m http.server 8080
+cd frontend
+npm install
+npm run dev
 ```
-
-前端服务将在 http://localhost:8080 启动
+前端开发服务器将在 http://localhost:3000 启动，自动代理 API 请求到后端。
 
 ### 演示账户
-- **邮箱**: `demo@example.com`
-- **密码**: `demo123`
+
+| 字段 | 值 |
+|------|-----|
+| 邮箱 | `demo@example.com` |
+| 密码 | `demo123456` |
 
 ## 📡 API 文档
 
@@ -114,7 +116,21 @@ Content-Type: application/json
 
 {
     "username": "demo@example.com",
-    "password": "demo123"
+    "password": "demo123456"
+}
+```
+
+**响应:**
+```json
+{
+    "success": true,
+    "token": "...",
+    "user": {
+        "id": 1,
+        "username": "demo",
+        "email": "demo@example.com",
+        "display_name": "Demo User"
+    }
 }
 ```
 
@@ -132,239 +148,90 @@ Content-Type: application/json
 
 ### AI 接口
 
-#### 获取 AI 助手列表
 ```http
-GET /api/ai/agents
-```
-
-#### AI 对话
-```http
-POST /api/ai/chat
-Content-Type: application/json
-
-{
-    "message": "当前市场趋势如何？",
-    "agent_id": "market-analyst"
-}
-```
-
-#### 获取对话列表
-```http
-GET /api/ai/conversations
+GET  /api/ai/agents          # 获取 AI 助手列表
+POST /api/ai/chat            # AI 对话
+GET  /api/ai/conversations   # 获取对话列表
 ```
 
 ### 风险接口
 
-#### 获取风险仪表盘
 ```http
-GET /api/risk/dashboard
-```
-
-#### 获取风险设置
-```http
-GET /api/risk/settings
-```
-
-#### 获取风险预警
-```http
-GET /api/risk/alerts
-```
-
-#### 计算仓位大小
-```http
-POST /api/risk/calculate-position-size
-Content-Type: application/json
-
-{
-    "account_size": 100000,
-    "risk_percent": 1,
-    "entry_price": 100,
-    "stop_loss": 95
-}
+GET  /api/risk/dashboard              # 获取风险仪表盘
+GET  /api/risk/settings               # 获取风险设置
+GET  /api/risk/alerts                 # 获取风险预警
+POST /api/risk/calculate-position-size # 计算仓位大小
 ```
 
 ### 市场接口
 
-#### 获取市场仪表盘
 ```http
-GET /api/market/dashboard
-```
-
-#### 获取市场新闻
-```http
-GET /api/market/news?limit=10&category=macro
-```
-
-#### 获取市场事件
-```http
-GET /api/market/events
-```
-
-#### 获取经济指标
-```http
-GET /api/market/indicators
+GET /api/market/dashboard              # 获取市场仪表盘
+GET /api/market/news?limit=10          # 获取市场新闻
+GET /api/market/events                 # 获取市场事件
+GET /api/market/indicators             # 获取经济指标
 ```
 
 ### 策略接口
 
-#### 获取策略列表
 ```http
-GET /api/strategies
-```
-
-#### 创建策略
-```http
-POST /api/strategies
-Content-Type: application/json
-
-{
-    "name": "我的策略",
-    "description": "策略描述",
-    "strategy_type": "trend_following",
-    "code": "# 策略代码"
-}
-```
-
-#### 策略回测
-```http
-POST /api/strategies/backtest
-Content-Type: application/json
-
-{
-    "strategy_id": 1,
-    "start_date": "2023-01-01",
-    "end_date": "2023-12-31",
-    "initial_capital": 100000
-}
-```
-
-#### 获取策略模板
-```http
-GET /api/strategies/templates
-```
-
-### 用户接口
-
-#### 获取当前用户
-```http
-GET /api/users/me
-```
-
-#### 获取用户统计
-```http
-GET /api/users/me/stats
-```
-
-#### 获取用户偏好
-```http
-GET /api/users/me/preferences
-```
-
-### 通知接口
-
-#### 获取通知列表
-```http
-GET /api/notifications
-```
-
-#### 标记通知已读
-```http
-PUT /api/notifications/{id}/read
-```
-
-#### 标记所有通知已读
-```http
-PUT /api/notifications/read-all
-```
-
-#### 获取通知设置
-```http
-GET /api/notifications/settings
-```
-
-#### 获取 Webhook 列表
-```http
-GET /api/webhooks
-```
-
-#### 获取邮件配置
-```http
-GET /api/email/config
+GET  /api/strategies           # 获取策略列表
+POST /api/strategies           # 创建策略
+POST /api/strategies/backtest  # 策略回测
+GET  /api/strategies/templates # 获取策略模板
 ```
 
 ### 信号市场接口
 
-#### 获取信号列表
 ```http
 GET /api/signals/feed?limit=20&message_type=operation&market=us-stock
-```
-
-**查询参数:**
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `limit` | int | 否 | 返回数量，默认 20 |
-| `message_type` | string | 否 | 信号类型：`operation`(交易操作), `analysis`(分析报告), `discussion`(讨论) |
-| `market` | string | 否 | 市场：`us-stock`(美股), `crypto`(加密货币), `polymarket`(预测市场) |
-
-**响应示例:**
-```json
-{
-    "success": true,
-    "signals": [
-        {
-            "id": 1,
-            "agent_name": "量化先锋",
-            "title": "NVDA 突破买入信号",
-            "content": "NVDA 已突破 500 美元关键阻力位...",
-            "message_type": "operation",
-            "market": "us-stock",
-            "symbols": ["NVDA"],
-            "quality_score": 85.5,
-            "reply_count": 12,
-            "participant_count": 24,
-            "created_at": "2026-05-27 16:02:30"
-        }
-    ]
-}
-```
-
-#### 获取信号详情
-```http
 GET /api/signals/{signal_id}
 ```
 
-**路径参数:**
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `signal_id` | int | 是 | 信号 ID |
+**查询参数:**
+
+| 参数 | 说明 |
+|------|------|
+| `limit` | 返回数量，默认 20 |
+| `message_type` | `operation` / `analysis` / `discussion` |
+| `market` | `us-stock` / `crypto` / `polymarket` |
+
+### 通知接口
+
+```http
+GET /api/notifications           # 获取通知列表
+PUT /api/notifications/{id}/read # 标记已读
+PUT /api/notifications/read-all  # 全部已读
+```
 
 ## 🌐 部署
 
-### 后端部署到 Render.com
+### 后端 (Render.com)
 
-1. 访问 https://render.com 并注册账号
-2. 点击 "New" → "Web Service"
-3. 连接你的 GitHub 仓库
-4. 配置如下：
-   - **Name**: `ai-trader-customization`
-   - **Runtime**: Python 3
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `python main.py`
-   - **Plan**: Free
-5. 点击 "Create Web Service"
-
-### 前端部署到 Surge.sh
-
-1. 安装 Surge CLI:
-```bash
-npm install -g surge
+`render.yaml` 配置：
+```yaml
+services:
+  - type: web
+    name: ai-trader-customization
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: cd server && python flask_server.py
 ```
 
-2. 部署前端:
+部署步骤：
+1. 将代码推送到 GitHub
+2. Render 自动检测 `render.yaml` 并部署
+3. 或手动创建 Web Service 关联仓库
+
+### 前端 (Vercel)
+
 ```bash
-cd AI-Trader/service/frontend/dist
-surge .
+cd frontend
+npm run build
+vercel --prod
 ```
+
+Vercel 通过 `vercel.json` 将 `/api/*` 请求代理到 Render 后端。
 
 ### 环境变量
 
@@ -372,96 +239,52 @@ surge .
 |--------|------|--------|
 | `PORT` | 服务端口 | 8001 |
 | `PYTHON_VERSION` | Python 版本 | 3.11.9 |
+| `FLASK_ENV` | Flask 环境 | production |
 
 ## 📁 项目结构
 
 ```
 ai-trader-customization/
-├── main.py                 # 应用入口
+├── main.py                 # 备用应用入口
 ├── requirements.txt        # Python 依赖
-├── render.yaml            # Render 配置
-├── .gitignore             # Git 忽略文件
-├── server/                # 后端代码
-│   ├── flask_server.py    # Flask 后端服务
-│   ├── simple_server.py   # FastAPI 后端服务（备用）
+├── render.yaml             # Render 部署配置
+├── vercel.json             # Vercel 代理配置
+├── server/                 # 后端代码
+│   ├── flask_server.py     # Flask 后端服务（主）
+│   ├── config.py           # 配置模块
 │   ├── requirements.txt   # 后端依赖
-│   └── data/              # 数据库目录
-│       └── clawtrader.db  # SQLite 数据库
-└── AI-Trader/             # 前端代码
-    └── service/
-        └── frontend/
-            └── dist/      # 前端构建产物
-                ├── index.html
-                └── CNAME   # Surge 域名配置
+│   └── data/               # SQLite 数据库目录
+└── frontend/               # Vue 前端
+    ├── package.json
+    ├── vite.config.ts
+    ├── vercel.json         # Vercel 路由配置
+    ├── src/
+    │   ├── main.ts         # 应用入口
+    │   ├── App.vue
+    │   ├── router/         # 路由
+    │   ├── stores/         # Pinia 状态管理
+    │   ├── services/       # API 请求 (axios)
+    │   ├── views/          # 页面组件
+    │   └── components/     # 通用组件
+    └── dist/               # 构建产物
 ```
 
 ## 🔧 配置说明
 
 ### CORS 配置
-后端已配置为允许以下域名访问：
-- `http://localhost:8080`
-- `http://localhost:3000`
-- `https://trading-agent-for-dscourse.surge.sh`
-- `https://ai-trader-customization.onrender.com`
-- 所有 `*.deta.app` 和 `*.deta.dev` 域名
-- 所有 `*.onrender.com` 域名
+后端通过 `before_request` + `after_request` 处理 CORS，支持所有来源。
 
-### 数据库配置
-- 默认使用 SQLite 数据库
-- 数据库文件路径: `server/data/clawtrader.db`
-- 首次启动时自动创建表结构和示例数据
-
-## 🎯 功能演示
-
-### AI 对话
-- 选择不同的 AI 助手角色
-- 输入问题获取专业回答
-- 查看历史对话记录
-
-### 风险控制
-- 查看实时风险指标
-- 设置风险预警阈值
-- 使用仓位计算器计算合理仓位
-
-### 市场情报
-- 浏览最新市场新闻
-- 查看即将发生的经济事件
-- 分析市场情绪
-
-### 策略管理
-- 创建和编辑交易策略
-- 使用策略模板快速开始
-- 回测策略表现
+### 数据库
+- 默认使用 SQLite，路径 `server/data/clawtrader.db`
+- 首次启动自动创建表结构和演示数据
+- 演示账户密码每次启动自动重置为 `demo123456`
 
 ## 📝 注意事项
 
-1. **Render 免费版会休眠**: 15 分钟无活动后会休眠，首次访问可能需要等待 10-30 秒
-2. **数据库会重置**: 每次重新部署时，SQLite 数据库会重置为初始状态
-3. **演示数据**: 系统包含示例数据，用于演示功能
-4. **AI 对话**: 当前 AI 回复是预设的模拟回复，如需真实 AI 对话，需要接入 OpenAI 或其他 LLM API
-
-## 🔮 未来规划
-
-- [ ] 接入真实的 AI 对话 API（OpenAI、Claude 等）
-- [ ] 实现真实的邮件发送功能
-- [ ] 实现真实的 Webhook 触发逻辑
-- [ ] 迁移到 PostgreSQL 数据库
-- [ ] 添加更多策略模板
-- [ ] 实现实时数据推送
-- [ ] 添加移动端适配
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request！
+1. **Render 免费版会休眠**：15 分钟无活动后休眠，首次访问需等 10-30 秒
+2. **数据库会重置**：每次重新部署 SQLite 数据库重置为初始状态
+3. **演示数据**：系统包含示例数据用于演示
 
 ## 📄 许可证
 
 MIT License
-
-## 📞 联系方式
-
-如有问题，请提交 Issue 或联系项目维护者。
-
----
-
-**🎉 享受你的智能交易助手！**
