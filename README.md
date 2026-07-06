@@ -1,6 +1,27 @@
 # AI-Trader — 智能交易助手
 
+<p align="center">
+  <img src="https://img.shields.io/github/stars/lccuhk/ai-trader-customization?style=for-the-badge&color=00D9FF" />
+  <img src="https://img.shields.io/github/forks/lccuhk/ai-trader-customization?style=for-the-badge&color=00FF88" />
+  <img src="https://img.shields.io/github/issues/lccuhk/ai-trader-customization?style=for-the-badge&color=FF6B6B" />
+  <img src="https://img.shields.io/github/license/lccuhk/ai-trader-customization?style=for-the-badge&color=FFD93D" />
+  <img src="https://img.shields.io/github/last-commit/lccuhk/ai-trader-customization?style=for-the-badge&color=9B59B6" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.8%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/Vue-3.x-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white" />
+  <img src="https://img.shields.io/badge/Flask-2.x-000000?style=for-the-badge&logo=flask&logoColor=white" />
+  <img src="https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white" />
+</p>
+
 一个功能完整的 AI 交易助手平台，基于 [HKUDS/AI-Trader](https://github.com/HKUDS/AI-Trader) 定制开发，集成了 AI 对话、风险控制、市场情报、策略编辑、信号市场等功能。
+
+## 🖼️ 项目预览
+
+<p align="center">
+  <img src="docs/images/preview.svg" alt="AI Trader Preview" width="100%" style="border-radius: 10px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);" />
+</p>
 
 ## 生产环境
 
@@ -287,4 +308,4 @@ ai-trader-customization/
 
 ## 📄 许可证
 
-MIT License
+本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件。
