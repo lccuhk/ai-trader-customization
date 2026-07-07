@@ -48,7 +48,7 @@ jobs:
           python3 run_tests.py --security
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: security-unit-test-results
           path: server/test-results/
@@ -87,7 +87,7 @@ jobs:
           python3 run_tests.py --unit
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: all-unit-test-results
           path: server/test-results/
@@ -135,7 +135,7 @@ jobs:
           python3 run_tests.py --performance 2>&1 | tee test-results/performance-test-results.txt
 
       - name: Upload performance test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: performance-test-results
           path: server/test-results/
