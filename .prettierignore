@@ -1,0 +1,52 @@
+# 依赖目录
+node_modules/
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# 构建产物
+dist/
+build/
+*.min.js
+*.min.css
+.DS_Store
+.vercel
+.output
+.nuxt
+.next
+
+# 第三方库
+*.min.js
+*.min.css
+lib/
+vendor/
+
+# 图片和字体
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico
+*.woff
+*.woff2
+*.ttf
+*.eot
+
+# 数据文件
+*.json
+*.csv
+*.xml
+
+# 配置文件
+.prettierrc
+.eslintrc.js
+.eslintrc.json
+.vscode/
+.idea/
+
+# 其他
+*.md
+CHANGELOG.md
+LICENSE
