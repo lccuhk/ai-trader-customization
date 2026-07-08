@@ -12,7 +12,16 @@
   <img src="https://img.shields.io/badge/Python-3.8%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" />
   <img src="https://img.shields.io/badge/Vue-3.x-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white" />
   <img src="https://img.shields.io/badge/Flask-2.x-000000?style=for-the-badge&logo=flask&logoColor=white" />
-  <img src="https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white" />
+  <img src="https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white" />
+</p>
+
+<p align="center">
+  <a href="https://frontend-six-mu-xqj303z2z3.vercel.app">
+    <img src="https://img.shields.io/badge/🚀_在线演示-Vercel-00D9FF?style=for-the-badge" />
+  </a>
+  <a href="https://github.com/lccuhk/ai-trader-customization">
+    <img src="https://img.shields.io/badge/📂_查看源码-GitHub-00FF88?style=for-the-badge" />
+  </a>
 </p>
 
 一个功能完整的 AI 交易助手平台，基于 [HKUDS/AI-Trader](https://github.com/HKUDS/AI-Trader) 定制开发，集成了 AI 对话、风险控制、市场情报、策略编辑、信号市场等功能。
@@ -305,6 +314,36 @@ ai-trader-customization/
 1. **Render 免费版会休眠**：15 分钟无活动后休眠，首次访问需等 10-30 秒
 2. **数据库会重置**：每次重新部署 SQLite 数据库重置为初始状态
 3. **演示数据**：系统包含示例数据用于演示
+
+## 🗺️ 路线图 (Roadmap)
+
+### 短期目标 (v1.2.0)
+- [ ] 添加更多 AI 助手角色
+- [ ] 实现策略回测可视化
+- [ ] 添加更多交易信号源
+- [ ] 优化移动端体验
+- [ ] 支持自定义策略模板
+
+### 中期目标 (v1.3.0)
+- [ ] 集成实盘交易接口
+- [ ] 添加投资组合管理
+- [ ] 实现风险预警通知
+- [ ] 支持多账户管理
+- [ ] 添加高级图表分析
+
+### 长期目标 (v2.0.0)
+- [ ] 实现 AI 自动交易
+- [ ] 添加社交交易功能
+- [ ] 支持多市场覆盖（股票、加密货币、外汇）
+- [ ] 发布移动应用
+- [ ] 建立交易社区
+
+### 功能增强
+- [ ] 添加更多 API 接口
+- [ ] 优化数据库性能
+- [ ] 支持插件扩展
+- [ ] 添加多语言支持（中文、英文、日文）
+- [ ] 集成更多第三方数据源
 
 ## 🎯 里程碑规划
 
