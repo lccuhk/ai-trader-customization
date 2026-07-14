@@ -119,6 +119,366 @@ npm run lint
 npm run dev
 ```
 
+## 代码风格指南
+
+### Git 提交规范
+
+我们遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范：
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+**提交类型（type）：**
+- `feat` - 新功能
+- `fix` - Bug 修复
+- `docs` - 文档更新
+- `style` - 代码格式（不影响代码运行）
+- `refactor` - 重构（既不是新增功能，也不是修改 bug）
+- `perf` - 性能优化
+- `test` - 增加测试
+- `chore` - 构建过程或辅助工具的变动
+- `ci` - CI/CD 配置变更
+- `revert` - 回退提交
+
+**示例：**
+```
+feat(auth): add user registration with email verification
+
+- Implement registration form with validation
+- Add email verification flow
+- Update API documentation
+
+Closes #123
+```
+
+**提交规范：**
+- 标题不超过 72 个字符
+- 使用中文或英文均可，但要保持一致
+- 标题使用祈使句（"添加" 而不是 "添加了"）
+- 正文详细说明改动的原因和内容
+- 关联相关 Issue（如 `Closes #123`、`Fixes #456`）
+
+### 命名约定
+
+#### Python 后端
+```python
+# 变量名 - snake_case
+user_name = "John"
+max_retries = 3
+
+# 函数名 - snake_case，动词开头
+def get_user_by_id(user_id: int) -> User:
+    """根据 ID 获取用户信息"""
+    pass
+
+def calculate_portfolio_value(portfolio: Portfolio) -> float:
+    """计算投资组合价值"""
+    pass
+
+# 类名 - PascalCase
+class UserService:
+    """用户服务类"""
+    pass
+
+class TradingStrategy:
+    """交易策略基类"""
+    pass
+
+# 常量 - UPPER_SNAKE_CASE
+MAX_RETRY_COUNT = 3
+DEFAULT_TIMEOUT = 30
+API_BASE_URL = "https://api.example.com"
+
+# 私有变量/方法 - 下划线前缀
+class User:
+    def __init__(self):
+        self._internal_state = {}
+    
+    def _validate_input(self, data):
+        """内部验证方法"""
+        pass
+```
+
+#### Vue 前端
+```typescript
+// 组件名 - PascalCase，多单词
+const UserProfile = defineComponent({ ... })
+const TradingDashboard = defineComponent({ ... })
+
+// 组合式函数 - camelCase，use 开头
+const useUserStore = defineStore('user', () => { ... })
+const useTradingData = () => { ... }
+
+// 变量/函数 - camelCase
+const userName = ref('John')
+const fetchUserData = async () => { ... }
+
+// 常量 - UPPER_SNAKE_CASE
+const MAX_RETRIES = 3
+const API_BASE_URL = import.meta.env.VITE_API_URL
+
+// Props - camelCase
+defineProps<{
+  userId: number
+  isLoading: boolean
+}>()
+
+// Emits - kebab-case（模板中），camelCase（脚本中）
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: string): void
+  (e: 'user-updated', user: User): void
+}>()
+```
+
+#### 文件命名
+```
+# Python 文件 - snake_case
+user_service.py
+trading_strategy.py
+__init__.py
+
+# Vue 组件 - PascalCase
+UserProfile.vue
+TradingDashboard.vue
+ApiClient.ts
+
+# 工具函数 - camelCase
+formatDate.ts
+calculateStats.ts
+
+# 样式文件 - kebab-case
+user-profile.css
+trading-dashboard.scss
+```
+
+### 注释规范
+
+#### Python Docstring
+使用 Google 风格的 docstring：
+
+```python
+def fetch_market_data(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
+    """获取指定时间范围内的市场数据
+
+    Args:
+        symbol: 交易对符号，如 'BTC/USDT'
+        start_date: 开始日期，格式 'YYYY-MM-DD'
+        end_date: 结束日期，格式 'YYYY-MM-DD'
+
+    Returns:
+        包含 OHLCV 数据的 DataFrame，列为：
+        - timestamp: 时间戳
+        - open: 开盘价
+        - high: 最高价
+        - low: 最低价
+        - close: 收盘价
+        - volume: 成交量
+
+    Raises:
+        ValueError: 日期格式不正确
+        APIError: API 请求失败
+
+    Example:
+        >>> df = fetch_market_data('BTC/USDT', '2024-01-01', '2024-01-31')
+        >>> print(df.head())
+    """
+    pass
+```
+
+#### JavaScript/TypeScript 注释
+使用 JSDoc 风格：
+
+```typescript
+/**
+ * 计算投资组合的总价值
+ * @param holdings - 持仓列表，每个包含 symbol 和 amount
+ * @param prices - 当前价格映射
+ * @returns 投资组合总价值
+ * @example
+ * const value = calculatePortfolioValue(
+ *   [{ symbol: 'BTC', amount: 1 }],
+ *   { BTC: 50000 }
+ * )
+ */
+function calculatePortfolioValue(
+  holdings: Holding[],
+  prices: Record<string, number>
+): number {
+  return holdings.reduce((total, h) => {
+    return total + (prices[h.symbol] || 0) * h.amount
+  }, 0)
+}
+```
+
+#### 行内注释
+```python
+# ✅ 好的注释 - 解释为什么这样做
+# 使用缓存避免重复计算，提升性能 30%+
+result = expensive_calculation(data)
+
+# ❌ 不好的注释 - 重复代码内容
+# 计算结果
+result = calculate(data)
+```
+
+```typescript
+// ✅ 好的注释
+// 防抖 300ms，避免频繁触发 API 请求
+const debouncedSearch = useDebounce(searchQuery, 300)
+
+// ❌ 不好的注释
+// 定义防抖搜索
+const debouncedSearch = useDebounce(searchQuery, 300)
+```
+
+### API 设计规范
+
+#### REST API 规范
+```python
+# ✅ 好的 API 设计
+# GET    /api/users          # 获取用户列表
+# GET    /api/users/:id      # 获取单个用户
+# POST   /api/users          # 创建用户
+# PUT    /api/users/:id      # 更新用户
+# DELETE /api/users/:id      # 删除用户
+
+# ✅ 统一响应格式
+{
+  "code": 0,              # 0 表示成功，非 0 表示错误
+  "message": "success",   # 提示信息
+  "data": { ... },        # 响应数据
+  "timestamp": 1234567890 # 时间戳
+}
+
+# ✅ 分页格式
+{
+  "code": 0,
+  "data": {
+    "items": [...],       # 数据列表
+    "total": 100,         # 总数
+    "page": 1,            # 当前页码
+    "page_size": 20       # 每页数量
+  }
+}
+```
+
+#### 错误处理
+```python
+# ✅ 统一错误码
+{
+  "code": 40001,           # 错误码
+  "message": "参数错误",    # 错误信息
+  "details": {             # 详细错误信息（可选）
+    "field": "email",
+    "error": "邮箱格式不正确"
+  }
+}
+```
+
+### 错误处理规范
+
+#### Python 后端
+```python
+# ✅ 使用自定义异常
+class APIError(Exception):
+    """API 调用异常"""
+    def __init__(self, message: str, status_code: int = 500):
+        self.message = message
+        self.status_code = status_code
+        super().__init__(message)
+
+# ✅ 捕获具体异常
+try:
+    result = api_client.fetch_data()
+except ConnectionError as e:
+    logger.error(f"连接失败: {e}")
+    raise APIError("无法连接到服务器", status_code=503)
+except TimeoutError as e:
+    logger.error(f"请求超时: {e}")
+    raise APIError("请求超时，请稍后重试", status_code=504)
+
+# ❌ 不要捕获所有异常
+try:
+    result = api_client.fetch_data()
+except Exception as e:  # 太宽泛
+    pass
+```
+
+#### 前端错误处理
+```typescript
+// ✅ 使用 try-catch 处理异步操作
+const fetchData = async () => {
+  try {
+    isLoading.value = true
+    const response = await api.get('/users')
+    users.value = response.data
+  } catch (error) {
+    console.error('获取用户数据失败:', error)
+    showError('获取数据失败，请稍后重试')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// ✅ 统一错误处理
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+})
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // 未授权，跳转到登录页
+      router.push('/login')
+    }
+    return Promise.reject(error)
+  }
+)
+```
+
+### 导入排序规范
+
+#### Python（isort 配置）
+```python
+# 1. 标准库
+import os
+import sys
+from datetime import datetime
+
+# 2. 第三方库
+import pandas as pd
+from flask import Flask, request
+
+# 3. 本地库
+from server.models import User
+from server.utils import format_date
+```
+
+#### JavaScript/TypeScript
+```typescript
+// 1. 第三方库
+import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
+import axios from 'axios'
+
+// 2. 本地组件
+import UserProfile from '@/components/UserProfile.vue'
+import TradingChart from '@/components/TradingChart.vue'
+
+// 3. 工具函数和类型
+import { formatNumber } from '@/utils/format'
+import type { User, Portfolio } from '@/types'
+
+// 4. 样式
+import '@/styles/main.css'
+```
+
 ## 开发环境
 
 ### 后端开发
